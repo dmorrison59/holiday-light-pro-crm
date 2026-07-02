@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f5f7f4;
+  --foreground: #16221d;
+  --evergreen: #17613f;
+  --evergreen-dark: #104a31;
+  --gold: #a8792c;
+  --border: #dfe6e1;
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  background: var(--background);
+}
+
+body {
+  min-height: 100vh;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: #d8eadf;
+  color: #104a31;
+}
+
+:focus-visible { outline-color: var(--evergreen); }
+
+/* Compatibility layer for older screens that still use the original amber
+   utility names. This keeps the visual system consistent without changing
+   their behavior. */
+.bg-amber-400 { background-color: var(--evergreen) !important; }
+.hover\:bg-amber-300:hover { background-color: var(--evergreen-dark) !important; }
+.text-amber-800, .text-amber-700 { color: #17613f !important; }
+.bg-amber-100, .bg-amber-50 { background-color: #edf6f0 !important; }
+.border-amber-200, .border-amber-300 { border-color: #bad8c5 !important; }
+.hover\:bg-amber-50:hover { background-color: #edf6f0 !important; }
+.focus-visible\:ring-amber-500:focus-visible { --tw-ring-color: #27835a !important; }
+
+table tbody tr { transition: background-color 150ms ease; }
+table tbody tr:hover { background: #f7faf8; }
+
+@media print {
+  body { background: white !important; color: #111827 !important; }
+  body:has(.proposal-print) aside,
+  body:has(.proposal-print) > header,
+  [data-print-hide] { display: none !important; }
+  body:has(.proposal-print) main { padding-left: 0 !important; }
+  body:has(.proposal-print) main > div { max-width: none !important; padding: 0 !important; }
+  .proposal-print { box-shadow: none !important; border: 0 !important; }
+  .proposal-print section { break-inside: avoid; }
+  .proposal-print header { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  @page { margin: 0.5in; }
+}

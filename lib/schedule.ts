@@ -1,0 +1,35 @@
+import "server-only";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { ScheduleEvent } from "@/types/database";
+
+export interface ScheduleEntry { id: string; source: "event" | "visit"; eventType: string; eventDate: string; startTime: string | null; endTime: string | null; timeWindow: string | null; status: string; customerId: string; propertyId: string; customerName: string; propertyLabel: string; jobId: string | null; jobNumber: string | null; jobStatus: string | null; paymentStatus: string | null; siteVisitId: string | null; notes: string | null; }
+export interface UnscheduledJob { id: string; jobNumber: string; customerName: string; propertyLabel: string; status: string; paymentStatus: string; total: number; need: "install" | "takedown"; }
+export interface ScheduleData { entries: ScheduleEntry[]; unscheduled: UnscheduledJob[]; }
+
+const name = (first: string, last: string) => `${first} ${last}`.trim();
+export async function getScheduleData(organizationId: string): Promise<ScheduleData> {
+  const supabase = await createSupabaseServerClient();
+  const [events, visits, customers, properties, jobs, quotes] = await Promise.all([
+    supabase.from("schedule_events").select("*").eq("organization_id", organizationId).order("event_date").order("start_time", { nullsFirst: false }),
+    supabase.from("site_visits").select("id, customer_id, property_id, visit_date, notes").eq("organization_id", organizationId).order("visit_date"),
+    supabase.from("customers").select("id, first_name, last_name").eq("organization_id", organizationId),
+    supabase.from("properties").select("id, property_name, address_line_1, city, state").eq("organization_id", organizationId),
+    supabase.from("jobs").select("id, customer_id, property_id, quote_id, job_number, status, payment_status, install_date, takedown_date").eq("organization_id", organizationId),
+    supabase.from("quotes").select("id, total").eq("organization_id", organizationId),
+  ]);
+  if ([events, visits, customers, properties, jobs, quotes].some((result) => result.error)) throw new Error("We could not load the schedule. Please try again.");
+  const customerMap = new Map((customers.data ?? []).map((item) => [item.id, name(item.first_name, item.last_name)]));
+  const propertyMap = new Map((properties.data ?? []).map((item) => [item.id, item.property_name || [item.address_line_1, item.city, item.state].filter(Boolean).join(", ")]));
+  const jobMap = new Map((jobs.data ?? []).map((item) => [item.id, item]));
+  const quoteMap = new Map((quotes.data ?? []).map((item) => [item.id, Number(item.total)]));
+  const eventEntries: ScheduleEntry[] = (events.data ?? []).map((item) => { const job = item.job_id ? jobMap.get(item.job_id) : null; return { id: item.id, source: "event", eventType: item.event_type, eventDate: item.event_date, startTime: item.start_time, endTime: item.end_time, timeWindow: item.time_window, status: item.status, customerId: item.customer_id ?? job?.customer_id ?? "", propertyId: item.property_id ?? job?.property_id ?? "", customerName: customerMap.get(item.customer_id ?? job?.customer_id ?? "") ?? "Customer not selected", propertyLabel: propertyMap.get(item.property_id ?? job?.property_id ?? "") ?? "Property not selected", jobId: item.job_id, jobNumber: job?.job_number ?? null, jobStatus: job?.status ?? null, paymentStatus: job?.payment_status ?? null, siteVisitId: null, notes: item.notes } });
+  const representedVisits = new Set((events.data ?? []).filter((item) => item.event_type === "site_visit").map((item) => `${item.customer_id}:${item.property_id}:${item.event_date}`));
+  const visitEntries: ScheduleEntry[] = (visits.data ?? []).flatMap((item) => item.visit_date && !representedVisits.has(`${item.customer_id}:${item.property_id}:${item.visit_date.slice(0, 10)}`) ? [{ id: item.id, source: "visit" as const, eventType: "site_visit", eventDate: item.visit_date.slice(0, 10), startTime: item.visit_date.includes("T") ? item.visit_date.slice(11, 16) : null, endTime: null, timeWindow: null, status: "scheduled", customerId: item.customer_id, propertyId: item.property_id, customerName: customerMap.get(item.customer_id) ?? "Customer", propertyLabel: propertyMap.get(item.property_id) ?? "Property", jobId: null, jobNumber: null, jobStatus: null, paymentStatus: null, siteVisitId: item.id, notes: item.notes }] : []);
+  const closed = new Set(["complete", "canceled"]);
+  const unscheduled: UnscheduledJob[] = (jobs.data ?? []).flatMap<UnscheduledJob>((job) => { const base = { id: job.id, jobNumber: job.job_number || "Job", customerName: customerMap.get(job.customer_id) ?? "Customer", propertyLabel: propertyMap.get(job.property_id) ?? "Property", status: job.status, paymentStatus: job.payment_status, total: job.quote_id ? quoteMap.get(job.quote_id) ?? 0 : 0 }; if (!job.install_date && !closed.has(job.status)) return [{ ...base, need: "install" }]; if (["installed", "final_invoice_sent", "paid"].includes(job.status) && !job.takedown_date && !closed.has(job.status)) return [{ ...base, need: "takedown" }]; return []; });
+  return { entries: [...eventEntries, ...visitEntries].sort((a, b) => `${a.eventDate}${a.startTime ?? ""}`.localeCompare(`${b.eventDate}${b.startTime ?? ""}`)), unscheduled };
+}
+
+export async function getScheduleFormData(organizationId: string) { const supabase = await createSupabaseServerClient(); const [customers, properties, jobs, profiles] = await Promise.all([supabase.from("customers").select("id, first_name, last_name").eq("organization_id", organizationId).order("last_name"), supabase.from("properties").select("id, customer_id, property_name, address_line_1").eq("organization_id", organizationId).order("address_line_1"), supabase.from("jobs").select("id, customer_id, property_id, job_number, status").eq("organization_id", organizationId).not("status", "eq", "canceled").order("created_at", { ascending: false }), supabase.from("profiles").select("id, first_name, last_name").eq("organization_id", organizationId)]); if ([customers, properties, jobs, profiles].some((item) => item.error)) throw new Error("We could not load schedule options."); return { customers: customers.data ?? [], properties: properties.data ?? [], jobs: jobs.data ?? [], profiles: profiles.data ?? [] }; }
+export async function getScheduleEvent(organizationId: string, id: string): Promise<ScheduleEvent | null> { const supabase = await createSupabaseServerClient(); const { data, error } = await supabase.from("schedule_events").select("*").eq("organization_id", organizationId).eq("id", id).maybeSingle(); if (error) throw new Error("We could not load that schedule event."); return data; }
+export async function getScheduleEventsForJob(organizationId: string, jobId: string) { const supabase = await createSupabaseServerClient(); const { data, error } = await supabase.from("schedule_events").select("*").eq("organization_id", organizationId).eq("job_id", jobId).order("event_date"); if (error) throw new Error("We could not load related schedule events."); return data ?? []; }

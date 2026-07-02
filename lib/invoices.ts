@@ -1,0 +1,5 @@
+import "server-only";
+import { getJob } from "@/lib/jobs";
+import { getPaymentsForJob } from "@/lib/payments";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+export async function getInvoiceData(organizationId: string, jobId: string) { const job = await getJob(organizationId, jobId); if (!job?.quote) return null; const supabase = await createSupabaseServerClient(); const [company, customer, quote, payments] = await Promise.all([supabase.from("organizations").select("name, phone, email, website, address, logo_url").eq("id", organizationId).maybeSingle(), supabase.from("customers").select("first_name, last_name, phone, email").eq("organization_id", organizationId).eq("id", job.customer_id).maybeSingle(), supabase.from("quotes").select("terms").eq("organization_id", organizationId).eq("id", job.quote.id).maybeSingle(), getPaymentsForJob(organizationId, jobId, job.quote.total)]); if (company.error || customer.error || quote.error || !company.data || !customer.data) throw new Error("We could not load this invoice."); return { job, company: company.data, customer: customer.data, terms: quote.data?.terms ?? null, payments }; }

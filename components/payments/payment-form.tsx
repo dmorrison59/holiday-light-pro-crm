@@ -1,0 +1,16 @@
+"use client";
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
+import { createPaymentAction, updatePaymentAction } from "@/app/actions/payments";
+import { FormMessage } from "@/components/auth/form-fields";
+import { FormField } from "@/components/customers/form-field";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { LinkButton } from "@/components/ui/link-button";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { paymentMethods, paymentRecordStatuses, paymentTypes } from "@/lib/payment-options";
+import type { Payment } from "@/types/database";
+const dateValue = (value?: string | null) => value ? value.slice(0, 10) : new Date().toISOString().slice(0, 10);
+function Save({ editing }: { editing: boolean }) { const { pending } = useFormStatus(); return <Button type="submit" size="lg" disabled={pending}>{pending ? "Saving…" : editing ? "Save Payment Changes" : "Record Payment"}</Button>; }
+export function PaymentForm({ jobId, payment, defaultType, defaultAmount }: { jobId: string; payment?: Payment; defaultType: string; defaultAmount: number }) { const editing = Boolean(payment); const [state, action] = useActionState(editing ? updatePaymentAction : createPaymentAction, {}); return <form action={action} className="space-y-6"><input type="hidden" name="job_id" value={jobId} />{payment ? <input type="hidden" name="payment_id" value={payment.id} /> : null}<FormMessage error={state.error} /><div className="grid gap-5 sm:grid-cols-2"><FormField label="Payment Type" required><Select name="payment_type" defaultValue={payment?.payment_type ?? defaultType}>{paymentTypes.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</Select></FormField><FormField label="Amount Paid" required><Input name="amount" type="number" min="0.01" step="0.01" inputMode="decimal" required defaultValue={payment?.amount ?? String(defaultAmount)} /></FormField><FormField label="Payment Date" required><Input name="payment_date" type="date" required defaultValue={dateValue(payment?.payment_date)} /></FormField><FormField label="Payment Status" required><Select name="status" defaultValue={payment?.status ?? "paid"}>{paymentRecordStatuses.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</Select></FormField><FormField label="Payment Method"><Select name="payment_method" defaultValue={payment?.payment_method ?? ""}><option value="">Not specified</option>{paymentMethods.map((method) => <option key={method} value={method}>{method}</option>)}</Select></FormField><FormField label="Check / Reference Number"><Input name="reference_number" defaultValue={payment?.reference_number ?? ""} placeholder="Check number or transaction reference" /></FormField></div><FormField label="Notes"><Textarea name="notes" defaultValue={payment?.notes ?? ""} placeholder="Deposit received to reserve install date." /></FormField><div className="flex flex-col-reverse gap-3 border-t pt-6 sm:flex-row sm:justify-end"><LinkButton href={`/jobs/${jobId}`} variant="secondary" size="lg">Cancel</LinkButton><Save editing={editing} /></div></form>; }

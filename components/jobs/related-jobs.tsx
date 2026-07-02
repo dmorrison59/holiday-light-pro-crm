@@ -1,0 +1,9 @@
+import { BriefcaseBusiness } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { LinkButton } from "@/components/ui/link-button";
+import { propertyAddress } from "@/lib/format";
+import { jobStatusLabel, paymentStatusLabel } from "@/lib/job-options";
+import type { JobListRecord } from "@/lib/jobs";
+export function RelatedJobs({ jobs, showProperty = false }: { jobs: JobListRecord[]; showProperty?: boolean }) { return <section aria-labelledby="related-jobs-title"><div className="mb-3"><h2 id="related-jobs-title" className="text-xl font-bold text-slate-950">Jobs</h2><p className="mt-1 text-sm text-slate-500">Installation work created from approved quotes.</p></div>{jobs.length ? <Card className="overflow-hidden"><div className="divide-y">{jobs.map((job) => <div key={job.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><div><div className="flex flex-wrap items-center gap-2"><p className="font-bold">{job.job_number}</p><Badge>{jobStatusLabel(job.status)}</Badge><Badge variant={job.payment_status === "paid" ? "success" : "neutral"}>{paymentStatusLabel(job.payment_status)}</Badge></div>{showProperty ? <p className="mt-1 text-sm text-slate-600">{job.property.property_name || propertyAddress(job.property)}</p> : null}<p className="mt-1 text-xs text-slate-500">Install: {job.install_date || "Not scheduled"} · Takedown: {job.takedown_date || "Not scheduled"}</p></div><LinkButton href={`/jobs/${job.id}`} size="sm" variant="secondary">View Job</LinkButton></div>)}</div></Card> : <EmptyState compact icon={<BriefcaseBusiness className="size-5" />} title="No jobs yet" description="Approved quotes can be converted into jobs." />}</section>; }
