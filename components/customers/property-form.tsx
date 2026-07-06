@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { AddressAutofill } from "@mapbox/search-js-react";
 import { createPropertyAction, updatePropertyAction } from "@/app/actions/customers";
 import { FormMessage } from "@/components/auth/form-fields";
 import { FormField } from "@/components/customers/form-field";
@@ -13,6 +14,26 @@ import { Textarea } from "@/components/ui/textarea";
 import { propertyTypes } from "@/lib/crm-options";
 import type { Property } from "@/types/database";
 
+interface PropertyAddress {
+  addressLine1: string;
+  city: string;
+  state: string;
+  zip: string;
+}
+
+interface AutofillResponse {
+  features: Array<{
+    properties: {
+      address_line1?: string;
+      address_level1?: string;
+      address_level2?: string;
+      postcode?: string;
+    };
+  }>;
+}
+
+const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN?.trim() ?? "";
+
 function SaveButton({ editing }: { editing: boolean }) {
   const { pending } = useFormStatus();
   return <Button type="submit" size="lg" className="w-full sm:w-auto" disabled={pending}>{pending ? "Saving…" : editing ? "Save Changes" : "Add Property"}</Button>;
@@ -21,7 +42,25 @@ function SaveButton({ editing }: { editing: boolean }) {
 export function PropertyForm({ customerId, property }: { customerId: string; property?: Property }) {
   const editing = Boolean(property);
   const [state, action] = useActionState(editing ? updatePropertyAction : createPropertyAction, {});
+  const [address, setAddress] = useState<PropertyAddress>({
+    addressLine1: property?.address_line_1 ?? "",
+    city: property?.city ?? "",
+    state: property?.state ?? "",
+    zip: property?.zip ?? "",
+  });
   const cancelHref = property ? `/properties/${property.id}` : `/customers/${customerId}`;
+  const updateAddress = (field: keyof PropertyAddress, value: string) => setAddress((current) => ({ ...current, [field]: value }));
+  const addressLine1Input = <Input name="address_line_1" required autoComplete="shipping address-line1" value={address.addressLine1} onChange={(event) => updateAddress("addressLine1", event.target.value)} placeholder="100 Main Street" />;
+  const handleRetrieve = (response: AutofillResponse) => {
+    const feature = response.features[0];
+    if (!feature) return;
+    setAddress((current) => ({
+      addressLine1: feature.properties.address_line1 ?? current.addressLine1,
+      city: feature.properties.address_level2 ?? "",
+      state: feature.properties.address_level1 ?? "",
+      zip: feature.properties.postcode?.slice(0, 5) ?? "",
+    }));
+  };
 
   return (
     <form action={action} className="space-y-6">
@@ -29,12 +68,12 @@ export function PropertyForm({ customerId, property }: { customerId: string; pro
       {property ? <input type="hidden" name="property_id" value={property.id} /> : null}
       <FormMessage error={state.error} />
       <FormField label="Property name"><Input name="property_name" defaultValue={property?.property_name ?? ""} placeholder="Johnson Residence" /></FormField>
-      <FormField label="Address line 1" required><Input name="address_line_1" required autoComplete="address-line1" defaultValue={property?.address_line_1} /></FormField>
+      <FormField label="Address line 1" required hint={mapboxToken ? "Start typing and choose a suggested address." : undefined}>{mapboxToken ? <AddressAutofill accessToken={mapboxToken} options={{ country: "US", language: "en" }} onRetrieve={handleRetrieve}>{addressLine1Input}</AddressAutofill> : addressLine1Input}</FormField>
       <FormField label="Address line 2"><Input name="address_line_2" autoComplete="address-line2" defaultValue={property?.address_line_2 ?? ""} /></FormField>
       <div className="grid gap-5 sm:grid-cols-3">
-        <FormField label="City"><Input name="city" autoComplete="address-level2" defaultValue={property?.city} /></FormField>
-        <FormField label="State"><Input name="state" autoComplete="address-level1" defaultValue={property?.state} maxLength={2} className="uppercase" placeholder="PA" /></FormField>
-        <FormField label="ZIP"><Input name="zip" autoComplete="postal-code" defaultValue={property?.zip} /></FormField>
+        <FormField label="City"><Input name="city" autoComplete="shipping address-level2" value={address.city} onChange={(event) => updateAddress("city", event.target.value)} /></FormField>
+        <FormField label="State"><Input name="state" autoComplete="shipping address-level1" value={address.state} onChange={(event) => updateAddress("state", event.target.value.toUpperCase())} maxLength={2} className="uppercase" placeholder="PA" /></FormField>
+        <FormField label="ZIP"><Input name="zip" autoComplete="shipping postal-code" inputMode="numeric" value={address.zip} onChange={(event) => updateAddress("zip", event.target.value)} /></FormField>
       </div>
       <FormField label="Property type"><Select name="property_type" defaultValue={property?.property_type ?? "Residential"}>{propertyTypes.map((type) => <option key={type} value={type}>{type}</option>)}</Select></FormField>
       <div className="grid gap-5 lg:grid-cols-2">
