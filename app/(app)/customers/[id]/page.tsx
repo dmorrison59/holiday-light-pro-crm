@@ -24,6 +24,9 @@ function Detail({ label, value, icon: Icon }: { label: string; value?: string | 
   return <div className="flex gap-3 rounded-xl bg-slate-50 p-4"><Icon className="mt-0.5 size-4 shrink-0 text-slate-500" /><div className="min-w-0"><dt className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</dt><dd className="mt-1 whitespace-pre-wrap break-words text-sm font-semibold text-slate-900">{value || "Not provided"}</dd></div></div>;
 }
 
+const address = (street: string | null, city: string | null, state: string | null, zip: string | null) =>
+  [street, [city, state].filter(Boolean).join(", "), zip].filter(Boolean).join(" ");
+
 export default async function CustomerDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ created?: string; updated?: string }> }) {
   const { organization } = await requireOrganization();
   const { id } = await params;
@@ -31,6 +34,8 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
   const [customer, siteVisits, measurements, quotes, jobs, payments] = await Promise.all([getCustomer(organization.id, id), getSiteVisitsForCustomer(organization.id, id), getMeasurementsForCustomer(organization.id, id), getQuotesForCustomer(organization.id, id), getJobsForCustomer(organization.id, id), getPaymentsForCustomer(organization.id, id)]);
   if (!customer) notFound();
   const name = customerName(customer.first_name, customer.last_name);
+  const billingAddress = address(customer.billing_street, customer.billing_city, customer.billing_state, customer.billing_zip) || customer.billing_address;
+  const serviceAddress = address(customer.service_street, customer.service_city, customer.service_state, customer.service_zip) || (customer.service_same_as_billing ? billingAddress : null);
 
   return (
     <div className="space-y-7">
@@ -43,7 +48,7 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
       <CustomerPayments payments={payments} jobs={jobs} />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
-        <Card><CardHeader className="flex flex-row items-center justify-between"><div><h2 className="font-bold text-slate-950">Customer Details</h2><p className="mt-1 text-sm text-slate-500">Added {formatDate(customer.created_at)}</p></div><StatusBadge status={customer.status} /></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2"><Detail label="Phone" value={customer.phone} icon={Phone} /><Detail label="Email" value={customer.email} icon={Mail} /><Detail label="Billing address" value={customer.billing_address} icon={MapPin} /><Detail label="Lead source" value={customer.lead_source} icon={Route} /><div className="sm:col-span-2"><Detail label="Notes" value={customer.notes} icon={FileText} /></div><div className="sm:col-span-2 grid gap-1 text-xs text-slate-500 sm:grid-cols-2"><p>Created {formatDate(customer.created_at)}</p><p className="sm:text-right">Updated {formatDate(customer.updated_at)}</p></div></CardContent></Card>
+        <Card><CardHeader className="flex flex-row items-center justify-between"><div><h2 className="font-bold text-slate-950">Customer Details</h2><p className="mt-1 text-sm text-slate-500">Added {formatDate(customer.created_at)}</p></div><StatusBadge status={customer.status} /></CardHeader><CardContent className="grid gap-4 sm:grid-cols-2"><Detail label="Phone" value={customer.phone} icon={Phone} /><Detail label="Email" value={customer.email} icon={Mail} /><Detail label="Billing address" value={billingAddress} icon={MapPin} /><Detail label="Service / install address" value={serviceAddress} icon={MapPin} /><Detail label="Lead source" value={customer.lead_source} icon={Route} /><div className="sm:col-span-2"><Detail label="Notes" value={customer.notes} icon={FileText} /></div><div className="sm:col-span-2 grid gap-1 text-xs text-slate-500 sm:grid-cols-2"><p>Created {formatDate(customer.created_at)}</p><p className="sm:text-right">Updated {formatDate(customer.updated_at)}</p></div></CardContent></Card>
         <Card><CardHeader><h2 className="font-bold text-slate-950">Customer Actions</h2></CardHeader><CardContent className="space-y-3"><LinkButton href={`/customers/${id}/site-visits/new`} className="w-full"><CalendarPlus className="mr-2 size-4" />Schedule Site Visit</LinkButton><LinkButton href={`/customers/${id}/properties/new`} variant="secondary" className="w-full"><Plus className="mr-2 size-4" />Add Property</LinkButton><LinkButton href={`/customers/${id}/edit`} variant="ghost" className="w-full"><Pencil className="mr-2 size-4" />Edit Customer</LinkButton><div className="border-t border-slate-100 pt-4"><p className="mb-3 text-xs leading-5 text-slate-500">Deleting also removes this customer’s properties and site visits. Future connected work may prevent deletion.</p><DeleteCustomerForm customerId={id} customerName={name} /></div></CardContent></Card>
       </div>
 

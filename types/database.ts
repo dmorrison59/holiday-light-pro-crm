@@ -39,6 +39,17 @@ export interface Customer {
   phone: Nullable<string>;
   email: Nullable<string>;
   billing_address: Nullable<string>;
+  billing_street: Nullable<string>;
+  billing_city: Nullable<string>;
+  billing_state: Nullable<string>;
+  billing_zip: Nullable<string>;
+  service_same_as_billing: boolean;
+  service_street: Nullable<string>;
+  service_city: Nullable<string>;
+  service_state: Nullable<string>;
+  service_zip: Nullable<string>;
+  latitude: Nullable<number>;
+  longitude: Nullable<number>;
   status: string;
   lead_source: Nullable<string>;
   notes: Nullable<string>;

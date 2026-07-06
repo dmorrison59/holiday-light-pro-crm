@@ -19,10 +19,22 @@ function customerValues(formData: FormData) {
   const lastName = value(formData, "last_name");
   const email = value(formData, "email");
   const status = value(formData, "status") || "lead";
+  const serviceSameAsBilling = formData.get("service_same_as_billing") === "on";
+  const billingStreet = value(formData, "billing_street");
+  const billingCity = value(formData, "billing_city");
+  const billingState = value(formData, "billing_state");
+  const billingZip = value(formData, "billing_zip");
+  const serviceStreet = serviceSameAsBilling ? billingStreet : value(formData, "service_street");
+  const serviceCity = serviceSameAsBilling ? billingCity : value(formData, "service_city");
+  const serviceState = serviceSameAsBilling ? billingState : value(formData, "service_state");
+  const serviceZip = serviceSameAsBilling ? billingZip : value(formData, "service_zip");
 
   if (!firstName) return { error: "First name is required." } as const;
   if (!validEmail(email)) return { error: "Enter a valid email address." } as const;
   if (!customerStatusValues.has(status)) return { error: "Choose a valid customer status." } as const;
+  if (billingZip && !/^\d{5}$/.test(billingZip)) return { error: "Enter a 5-digit billing ZIP code." } as const;
+  if (!serviceSameAsBilling && (!serviceStreet || !serviceCity || !serviceState || !serviceZip)) return { error: "Complete the service address." } as const;
+  if (serviceZip && !/^\d{5}$/.test(serviceZip)) return { error: "Enter a 5-digit service ZIP code." } as const;
 
   return {
     data: {
@@ -30,7 +42,15 @@ function customerValues(formData: FormData) {
       last_name: lastName,
       phone: value(formData, "phone") || null,
       email: email || null,
-      billing_address: value(formData, "billing_address") || null,
+      billing_street: billingStreet || null,
+      billing_city: billingCity || null,
+      billing_state: billingState || null,
+      billing_zip: billingZip || null,
+      service_same_as_billing: serviceSameAsBilling,
+      service_street: serviceStreet || null,
+      service_city: serviceCity || null,
+      service_state: serviceState || null,
+      service_zip: serviceZip || null,
       status,
       lead_source: value(formData, "lead_source") || null,
       notes: value(formData, "notes") || null,
