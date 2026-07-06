@@ -5,7 +5,7 @@ import { crmDateKey } from "@/lib/format";
 import type { Customer, Property, SiteVisit } from "@/types/database";
 
 export type VisitCustomer = Pick<Customer, "id" | "first_name" | "last_name">;
-export type VisitProperty = Pick<Property, "id" | "customer_id" | "property_name" | "address_line_1" | "address_line_2" | "city" | "state" | "zip">;
+export type VisitProperty = Pick<Property, "id" | "customer_id" | "property_name" | "address_line_1" | "address_line_2" | "city" | "state" | "zip" | "access_notes" | "outlet_notes">;
 
 export interface SiteVisitRecord extends SiteVisit {
   customer: VisitCustomer;
@@ -24,7 +24,7 @@ async function attachVisitRecords(organizationId: string, visits: SiteVisit[]): 
   const propertyIds = [...new Set(visits.map((visit) => visit.property_id))];
   const [customersResult, propertiesResult] = await Promise.all([
     supabase.from("customers").select("id, first_name, last_name").eq("organization_id", organizationId).in("id", customerIds),
-    supabase.from("properties").select("id, customer_id, property_name, address_line_1, address_line_2, city, state, zip").eq("organization_id", organizationId).in("id", propertyIds),
+    supabase.from("properties").select("id, customer_id, property_name, address_line_1, address_line_2, city, state, zip, access_notes, outlet_notes").eq("organization_id", organizationId).in("id", propertyIds),
   ]);
   if (customersResult.error || propertiesResult.error) throw new Error("We could not load site visit details. Please try again.");
 
@@ -78,7 +78,7 @@ export async function getSiteVisitOptions(organizationId: string): Promise<SiteV
   const supabase = await createSupabaseServerClient();
   const [customersResult, propertiesResult] = await Promise.all([
     supabase.from("customers").select("id, first_name, last_name").eq("organization_id", organizationId).order("first_name"),
-    supabase.from("properties").select("id, customer_id, property_name, address_line_1, address_line_2, city, state, zip").eq("organization_id", organizationId).order("address_line_1"),
+    supabase.from("properties").select("id, customer_id, property_name, address_line_1, address_line_2, city, state, zip, access_notes, outlet_notes").eq("organization_id", organizationId).order("address_line_1"),
   ]);
   if (customersResult.error || propertiesResult.error) throw new Error("We could not load customers and properties for this visit.");
   return { customers: customersResult.data ?? [], properties: propertiesResult.data ?? [] };

@@ -15,18 +15,22 @@ const difficultyValues = new Set<string>(difficultyOptions.map((difficulty) => d
 function measurementValues(formData: FormData) {
   const zoneName = value(formData, "zone_name");
   const measurementType = value(formData, "measurement_type");
-  const quantity = Number(value(formData, "quantity"));
+  const quantityValue = value(formData, "quantity");
+  const quantity = Number(quantityValue);
   const unit = value(formData, "unit");
   const heightLevel = value(formData, "height_level");
   const difficulty = value(formData, "difficulty");
-  const difficultyMultiplier = Number(value(formData, "difficulty_multiplier"));
+  const difficultyMultiplierValue = value(formData, "difficulty_multiplier");
+  const difficultyMultiplier = Number(difficultyMultiplierValue);
   if (!zoneName) return { error: "Zone name is required." } as const;
   if (!measurementTypeValues.has(measurementType)) return { error: "Choose a valid measurement type." } as const;
+  if (!quantityValue) return { error: "Quantity is required." } as const;
   if (!Number.isFinite(quantity) || quantity <= 0) return { error: "Quantity must be greater than zero." } as const;
   if (!unitValues.has(unit)) return { error: "Choose a valid unit." } as const;
   if (heightLevel && !heightValues.has(heightLevel)) return { error: "Choose a valid height level." } as const;
   if (difficulty && !difficultyValues.has(difficulty)) return { error: "Choose a valid difficulty." } as const;
-  if (!Number.isFinite(difficultyMultiplier) || difficultyMultiplier < 0) return { error: "Enter a valid difficulty multiplier." } as const;
+  if (!difficultyMultiplierValue) return { error: "Difficulty multiplier is required." } as const;
+  if (!Number.isFinite(difficultyMultiplier) || difficultyMultiplier < 0) return { error: "Difficulty multiplier cannot be negative." } as const;
   return { data: { zone_name: zoneName, measurement_type: measurementType, quantity: String(quantity), unit, height_level: heightLevel || null, difficulty: difficulty || null, difficulty_multiplier: String(difficultyMultiplier), catalog_item_id: value(formData, "catalog_item_id") || null, included_in_quote: formData.get("included_in_quote") === "on", notes: value(formData, "notes") || null } } as const;
 }
 

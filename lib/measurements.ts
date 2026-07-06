@@ -18,8 +18,11 @@ export interface MeasurementRecord extends MeasurementListItem {
 export interface MeasurementSummary {
   count: number;
   rooflineFeet: number;
+  ridgeFeet: number;
+  peakCount: number;
   garlandFeet: number;
   walkwayFeet: number;
+  drivewayFeet: number;
   wreathCount: number;
   treeCount: number;
   bushCount: number;
@@ -94,11 +97,14 @@ export function summarizeMeasurements(measurements: Measurement[]): MeasurementS
   const total = (predicate: (measurement: Measurement) => boolean) => measurements.filter(predicate).reduce((sum, measurement) => sum + Number(measurement.quantity || 0), 0);
   return {
     count: measurements.length,
-    rooflineFeet: total((item) => ["Roofline", "Peak/Gable"].includes(item.measurement_type) && item.unit === "ft"),
-    garlandFeet: total((item) => item.measurement_type === "Garland Area" && item.unit === "ft"),
+    rooflineFeet: total((item) => item.measurement_type === "Roofline" && item.unit === "ft"),
+    ridgeFeet: total((item) => item.measurement_type === "Ridge Line" && item.unit === "ft"),
+    peakCount: total((item) => item.measurement_type === "Peak/Gable"),
+    garlandFeet: total((item) => ["Garland", "Garland Area"].includes(item.measurement_type) && item.unit === "ft"),
     walkwayFeet: total((item) => item.measurement_type === "Walkway" && item.unit === "ft"),
+    drivewayFeet: total((item) => item.measurement_type === "Driveway" && item.unit === "ft"),
     wreathCount: total((item) => item.measurement_type === "Wreath"),
     treeCount: total((item) => item.measurement_type === "Tree"),
-    bushCount: total((item) => item.measurement_type === "Bush"),
+    bushCount: total((item) => ["Shrub", "Bush"].includes(item.measurement_type)),
   };
 }

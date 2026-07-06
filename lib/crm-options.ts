@@ -39,7 +39,7 @@ export const preferredColorOptions = [
   "Custom",
 ] as const;
 
-export const measurementTypes = ["Roofline", "Peak/Gable", "Garland Area", "Walkway", "Driveway", "Tree", "Bush", "Wreath", "Window", "Door", "Fence", "Commercial Sign", "Yard Display", "Timer/Power", "Custom"] as const;
+export const measurementTypes = ["Roofline", "Ridge Line", "Peak/Gable", "Walkway", "Driveway", "Tree", "Shrub", "Wreath", "Garland", "Window", "Door", "Fence", "Commercial Sign", "Yard Display", "Timer/Power", "Garland Area", "Bush", "Custom"] as const;
 
 export const measurementUnits = ["ft", "each", "tree", "bush", "window", "door", "section", "custom"] as const;
 
