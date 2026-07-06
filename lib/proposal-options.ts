@@ -1,0 +1,1 @@
+export const starterProposalTerms = "Pricing is based on the measurements and options listed above. Final installation details may be adjusted if site conditions differ from the measured scope. Removal is included only when listed. Storage is included only when listed. Payment terms and scheduling are subject to company policy.";

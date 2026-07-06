@@ -6,7 +6,7 @@ import type { Organization, Quote, QuoteLineItem } from "@/types/database";
 export interface ProposalData {
   quote: Pick<Quote, "id" | "quote_number" | "status" | "quote_date" | "expiration_date" | "subtotal" | "discount" | "total" | "deposit_required" | "balance_due" | "customer_notes" | "terms" | "proposal_token" | "proposal_viewed_at" | "proposal_sent_at" | "approved_at" | "declined_at" | "customer_approval_name" | "customer_approval_email" | "customer_decline_reason">;
   company: Pick<Organization, "name" | "phone" | "email" | "website" | "address" | "logo_url">;
-  customer: { first_name: string; last_name: string; phone: string | null; email: string | null };
+  customer: { first_name: string; last_name: string; phone: string | null; email: string | null; billing_address: string | null; billing_street: string | null; billing_city: string | null; billing_state: string | null; billing_zip: string | null };
   property: { property_name: string | null; address_line_1: string; address_line_2: string | null; city: string; state: string; zip: string; property_type: string | null };
   siteVisit: { preferred_style: string | null; preferred_colors: string[] } | null;
   package: { name: string; description: string | null; includedItems: Array<{ name: string; quantity: string; unit: string; notes: string | null }> } | null;
@@ -24,7 +24,7 @@ async function assembleProposal(quote: Quote): Promise<ProposalData | null> {
   const supabase = await createSupabaseServerClient();
   const [company, customer, property, visit, packageResult, lines] = await Promise.all([
     supabase.from("organizations").select("name, phone, email, website, address, logo_url").eq("id", quote.organization_id).maybeSingle(),
-    supabase.from("customers").select("first_name, last_name, phone, email").eq("organization_id", quote.organization_id).eq("id", quote.customer_id).maybeSingle(),
+    supabase.from("customers").select("first_name, last_name, phone, email, billing_address, billing_street, billing_city, billing_state, billing_zip").eq("organization_id", quote.organization_id).eq("id", quote.customer_id).maybeSingle(),
     supabase.from("properties").select("property_name, address_line_1, address_line_2, city, state, zip, property_type").eq("organization_id", quote.organization_id).eq("id", quote.property_id).maybeSingle(),
     quote.site_visit_id ? supabase.from("site_visits").select("preferred_style, preferred_colors").eq("organization_id", quote.organization_id).eq("id", quote.site_visit_id).maybeSingle() : Promise.resolve({ data: null, error: null }),
     quote.package_id ? supabase.from("packages").select("id, name, description").eq("organization_id", quote.organization_id).eq("id", quote.package_id).maybeSingle() : Promise.resolve({ data: null, error: null }),

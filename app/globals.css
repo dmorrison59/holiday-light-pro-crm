@@ -54,6 +54,73 @@ select {
 table tbody tr { transition: background-color 150ms ease; }
 table tbody tr:hover { background: #f7faf8; }
 
+/* Customer-facing proposal palette */
+body:has(.proposal-print) {
+  background: #f2f0eb;
+}
+
+body:has(.proposal-print) main {
+  background: #f2f0eb !important;
+}
+
+.proposal-print {
+  background: #fffefa;
+  border-color: #d8d5ce !important;
+  color: #252a27;
+}
+
+.proposal-print > header {
+  background: linear-gradient(135deg, #17211d 0%, #24322b 100%) !important;
+  border-top: 4px solid #ad8a50;
+  border-bottom-color: #d8d5ce !important;
+}
+
+.proposal-print > header .text-amber-300 {
+  color: #d8bd86 !important;
+}
+
+.proposal-print .bg-slate-50 {
+  background: #f7f6f2 !important;
+}
+
+.proposal-print .border-slate-200,
+.proposal-print .border-slate-400 {
+  border-color: #d8d5ce !important;
+}
+
+.proposal-print .text-slate-950,
+.proposal-print .text-emerald-950 {
+  color: #202622 !important;
+}
+
+.proposal-print .text-slate-600,
+.proposal-print .text-slate-700 {
+  color: #59615c !important;
+}
+
+.proposal-print .border-emerald-100 {
+  border-color: #d8d5ce !important;
+}
+
+.proposal-print .bg-emerald-50\/60 {
+  background: #faf8f2 !important;
+}
+
+.proposal-print .text-emerald-800,
+.proposal-print .text-emerald-700 {
+  color: #6f5a31 !important;
+}
+
+.proposal-print .bg-slate-950 {
+  background: #202824 !important;
+  border: 1px solid #313c36;
+}
+
+.proposal-print table,
+.proposal-print [class*="divide-y"] {
+  border-color: #e4e1da;
+}
+
 @media print {
   body { background: white !important; color: #111827 !important; }
   body:has(.proposal-print) aside,
@@ -61,8 +128,35 @@ table tbody tr:hover { background: #f7faf8; }
   [data-print-hide] { display: none !important; }
   body:has(.proposal-print) main { padding-left: 0 !important; }
   body:has(.proposal-print) main > div { max-width: none !important; padding: 0 !important; }
-  .proposal-print { box-shadow: none !important; border: 0 !important; }
+  .proposal-print { background: white !important; box-shadow: none !important; border: 0 !important; color: #111827 !important; }
   .proposal-print section { break-inside: avoid; }
-  .proposal-print header { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .proposal-print > header {
+    background: white !important;
+    border-top: 0 !important;
+    border-bottom: 2px solid #1f2937 !important;
+    color: #111827 !important;
+  }
+  .proposal-print > header * { color: #111827 !important; }
+  .proposal-print > header .bg-amber-300 {
+    background: white !important;
+    border: 1px solid #9ca3af;
+  }
+  .proposal-print > header img { border: 1px solid #d1d5db; }
+  .proposal-print .bg-slate-50,
+  .proposal-print .bg-emerald-50\/60,
+  .proposal-print .bg-emerald-50,
+  .proposal-print .bg-red-50,
+  .proposal-print .bg-amber-50 {
+    background: white !important;
+  }
+  .proposal-print .bg-slate-950 {
+    background: white !important;
+    border: 1px solid #9ca3af !important;
+    color: #111827 !important;
+  }
+  .proposal-print .bg-slate-950 * { color: #111827 !important; }
+  .proposal-print .rounded-2xl,
+  .proposal-print .rounded-3xl { border-radius: 0.25rem !important; }
+  .proposal-print .shadow-sm { box-shadow: none !important; }
   @page { margin: 0.5in; }
 }
