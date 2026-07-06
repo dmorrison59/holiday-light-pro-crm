@@ -28,6 +28,10 @@ function customerValues(formData: FormData) {
   const serviceCity = serviceSameAsBilling ? billingCity : value(formData, "service_city");
   const serviceState = serviceSameAsBilling ? billingState : value(formData, "service_state");
   const serviceZip = serviceSameAsBilling ? billingZip : value(formData, "service_zip");
+  const latitudeValue = value(formData, "latitude");
+  const longitudeValue = value(formData, "longitude");
+  const latitude = latitudeValue ? Number(latitudeValue) : null;
+  const longitude = longitudeValue ? Number(longitudeValue) : null;
 
   if (!firstName) return { error: "First name is required." } as const;
   if (!validEmail(email)) return { error: "Enter a valid email address." } as const;
@@ -35,6 +39,8 @@ function customerValues(formData: FormData) {
   if (billingZip && !/^\d{5}$/.test(billingZip)) return { error: "Enter a 5-digit billing ZIP code." } as const;
   if (!serviceSameAsBilling && (!serviceStreet || !serviceCity || !serviceState || !serviceZip)) return { error: "Complete the service address." } as const;
   if (serviceZip && !/^\d{5}$/.test(serviceZip)) return { error: "Enter a 5-digit service ZIP code." } as const;
+  if (latitude !== null && (!Number.isFinite(latitude) || latitude < -90 || latitude > 90)) return { error: "The selected address latitude is invalid." } as const;
+  if (longitude !== null && (!Number.isFinite(longitude) || longitude < -180 || longitude > 180)) return { error: "The selected address longitude is invalid." } as const;
 
   return {
     data: {
@@ -51,6 +57,8 @@ function customerValues(formData: FormData) {
       service_city: serviceCity || null,
       service_state: serviceState || null,
       service_zip: serviceZip || null,
+      latitude,
+      longitude,
       status,
       lead_source: value(formData, "lead_source") || null,
       notes: value(formData, "notes") || null,
