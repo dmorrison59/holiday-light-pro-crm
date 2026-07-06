@@ -26,6 +26,43 @@ create table if not exists public.profiles (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.organization_pricing_settings (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null unique references public.organizations(id) on delete cascade,
+  roofline_price numeric(12, 2),
+  ridge_line_price numeric(12, 2),
+  walkway_price numeric(12, 2),
+  driveway_price numeric(12, 2),
+  garland_price numeric(12, 2),
+  wreath_price numeric(12, 2),
+  tree_price numeric(12, 2),
+  shrub_price numeric(12, 2),
+  peak_gable_price numeric(12, 2),
+  custom_labor_hourly_rate numeric(12, 2),
+  removal_price numeric(12, 2),
+  removal_included boolean not null default true,
+  storage_price numeric(12, 2),
+  storage_included boolean not null default false,
+  minimum_job_price numeric(12, 2),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint organization_pricing_settings_nonnegative check (
+    (roofline_price is null or roofline_price >= 0) and
+    (ridge_line_price is null or ridge_line_price >= 0) and
+    (walkway_price is null or walkway_price >= 0) and
+    (driveway_price is null or driveway_price >= 0) and
+    (garland_price is null or garland_price >= 0) and
+    (wreath_price is null or wreath_price >= 0) and
+    (tree_price is null or tree_price >= 0) and
+    (shrub_price is null or shrub_price >= 0) and
+    (peak_gable_price is null or peak_gable_price >= 0) and
+    (custom_labor_hourly_rate is null or custom_labor_hourly_rate >= 0) and
+    (removal_price is null or removal_price >= 0) and
+    (storage_price is null or storage_price >= 0) and
+    (minimum_job_price is null or minimum_job_price >= 0)
+  )
+);
+
 create table if not exists public.customers (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
@@ -353,6 +390,7 @@ create table if not exists public.files (
 
 -- Organization indexes
 create index if not exists profiles_organization_id_idx on public.profiles (organization_id);
+create index if not exists organization_pricing_settings_organization_id_idx on public.organization_pricing_settings (organization_id);
 create index if not exists customers_organization_id_idx on public.customers (organization_id);
 create index if not exists properties_organization_id_idx on public.properties (organization_id);
 create index if not exists leads_organization_id_idx on public.leads (organization_id);
@@ -446,7 +484,7 @@ declare
   table_name text;
 begin
   foreach table_name in array array[
-    'organizations', 'profiles', 'customers', 'properties', 'leads',
+    'organizations', 'profiles', 'organization_pricing_settings', 'customers', 'properties', 'leads',
     'site_visits', 'measurements', 'catalog_items', 'packages',
     'package_items', 'quotes', 'quote_line_items', 'jobs',
     'schedule_events', 'job_materials', 'payments', 'files'

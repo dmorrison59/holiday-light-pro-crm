@@ -2,7 +2,7 @@ import "server-only";
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { quoteStatuses, type QuoteStatus } from "@/lib/quote-options";
-import type { CatalogItem, Customer, Package, PackageItem, Property, Quote, QuoteLineItem, SiteVisit, Measurement } from "@/types/database";
+import type { CatalogItem, Customer, OrganizationPricingSettings, Package, PackageItem, Property, Quote, QuoteLineItem, SiteVisit, Measurement } from "@/types/database";
 
 export { quoteStatuses, type QuoteStatus };
 export type QuoteCustomer = Pick<Customer, "id" | "first_name" | "last_name">;
@@ -11,13 +11,13 @@ export type QuoteCatalogItem = Pick<CatalogItem, "id" | "name" | "category" | "d
 export interface QuotePackageItem extends PackageItem { catalog_item: QuoteCatalogItem; }
 export interface QuoteBuilderPackage extends Package { items: QuotePackageItem[]; }
 export interface QuoteBuilderMeasurement extends Measurement { catalog_item: QuoteCatalogItem | null; }
-export interface QuoteBuilderData { customers: QuoteCustomer[]; properties: QuoteProperty[]; siteVisits: SiteVisit[]; measurements: QuoteBuilderMeasurement[]; catalogItems: QuoteCatalogItem[]; packages: QuoteBuilderPackage[]; }
+export interface QuoteBuilderData { customers: QuoteCustomer[]; properties: QuoteProperty[]; siteVisits: SiteVisit[]; measurements: QuoteBuilderMeasurement[]; catalogItems: QuoteCatalogItem[]; packages: QuoteBuilderPackage[]; pricingSettings: OrganizationPricingSettings | null; }
 export interface QuoteRecord extends Quote { customer: QuoteCustomer; property: QuoteProperty; site_visit: SiteVisit | null; package: Package | null; line_items: QuoteLineItem[]; }
 export interface QuoteListRecord extends Quote { customer: QuoteCustomer; property: QuoteProperty; package: Pick<Package, "id" | "name"> | null; }
 
 export async function getQuoteBuilderData(organizationId: string): Promise<QuoteBuilderData> {
   const supabase = await createSupabaseServerClient();
-  const [customersResult, propertiesResult, visitsResult, measurementsResult, catalogResult, packagesResult, packageItemsResult] = await Promise.all([
+  const [customersResult, propertiesResult, visitsResult, measurementsResult, catalogResult, packagesResult, packageItemsResult, pricingResult] = await Promise.all([
     supabase.from("customers").select("id, first_name, last_name").eq("organization_id", organizationId).order("last_name"),
     supabase.from("properties").select("id, customer_id, property_name, address_line_1, address_line_2, city, state, zip").eq("organization_id", organizationId).order("address_line_1"),
     supabase.from("site_visits").select("*").eq("organization_id", organizationId).order("visit_date", { ascending: false }),
@@ -25,13 +25,14 @@ export async function getQuoteBuilderData(organizationId: string): Promise<Quote
     supabase.from("catalog_items").select("id, name, category, description, pricing_method, unit_type, unit_price, active").eq("organization_id", organizationId).order("name"),
     supabase.from("packages").select("*").eq("organization_id", organizationId).eq("active", true).order("display_order"),
     supabase.from("package_items").select("*").eq("organization_id", organizationId),
+    supabase.from("organization_pricing_settings").select("*").eq("organization_id", organizationId).maybeSingle(),
   ]);
-  if ([customersResult, propertiesResult, visitsResult, measurementsResult, catalogResult, packagesResult, packageItemsResult].some((result) => result.error)) throw new Error("We could not load the quote builder.");
+  if ([customersResult, propertiesResult, visitsResult, measurementsResult, catalogResult, packagesResult, packageItemsResult, pricingResult].some((result) => result.error)) throw new Error("We could not load the quote builder.");
   const catalog = new Map((catalogResult.data ?? []).map((item) => [item.id, item]));
   const measurements = (measurementsResult.data ?? []).map((item) => ({ ...item, catalog_item: item.catalog_item_id ? catalog.get(item.catalog_item_id) ?? null : null }));
   const packageItems = packageItemsResult.data ?? [];
   const packages = (packagesResult.data ?? []).map((item) => ({ ...item, items: packageItems.filter((packageItem) => packageItem.package_id === item.id).flatMap((packageItem) => { const catalogItem = catalog.get(packageItem.catalog_item_id); return catalogItem ? [{ ...packageItem, catalog_item: catalogItem }] : []; }) }));
-  return { customers: customersResult.data ?? [], properties: propertiesResult.data ?? [], siteVisits: visitsResult.data ?? [], measurements, catalogItems: (catalogResult.data ?? []).filter((item) => item.active), packages };
+  return { customers: customersResult.data ?? [], properties: propertiesResult.data ?? [], siteVisits: visitsResult.data ?? [], measurements, catalogItems: (catalogResult.data ?? []).filter((item) => item.active), packages, pricingSettings: pricingResult.data };
 }
 
 async function attachQuoteRelations(organizationId: string, quotes: Quote[]): Promise<QuoteListRecord[]> {

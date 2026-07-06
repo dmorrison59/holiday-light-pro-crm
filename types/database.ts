@@ -31,6 +31,28 @@ export interface Profile {
   updated_at: string;
 }
 
+export interface OrganizationPricingSettings {
+  id: string;
+  organization_id: string;
+  roofline_price: Nullable<string>;
+  ridge_line_price: Nullable<string>;
+  walkway_price: Nullable<string>;
+  driveway_price: Nullable<string>;
+  garland_price: Nullable<string>;
+  wreath_price: Nullable<string>;
+  tree_price: Nullable<string>;
+  shrub_price: Nullable<string>;
+  peak_gable_price: Nullable<string>;
+  custom_labor_hourly_rate: Nullable<string>;
+  removal_price: Nullable<string>;
+  removal_included: boolean;
+  storage_price: Nullable<string>;
+  storage_included: boolean;
+  minimum_job_price: Nullable<string>;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Customer {
   id: string;
   organization_id: string;
@@ -336,6 +358,7 @@ export type Database = {
     Tables: {
       organizations: TableDefinition<Organization>;
       profiles: TableDefinition<Profile>;
+      organization_pricing_settings: TableDefinition<OrganizationPricingSettings>;
       customers: TableDefinition<Customer>;
       properties: TableDefinition<Property>;
       leads: TableDefinition<Lead>;
