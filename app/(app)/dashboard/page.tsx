@@ -52,20 +52,20 @@ export default async function DashboardPage() {
   const firstName = profile.first_name?.trim();
 
   const kpis = [
-    { label: "New Leads", value: data.newLeads, icon: ListPlus, tone: "bg-sky-50 text-sky-700" },
-    { label: "Site Visits Scheduled", value: data.siteVisitsScheduled, icon: Route, tone: "bg-violet-50 text-violet-700" },
-    { label: "Measured Visits", value: data.measuredVisits, icon: Ruler, tone: "bg-cyan-50 text-cyan-700" },
-    { label: "Active Catalog Items", value: data.activeCatalogItems, icon: BookOpen, tone: "bg-indigo-50 text-indigo-700" },
-    { label: "Low Stock Items", value: data.lowStockItems, icon: TriangleAlert, tone: "bg-red-50 text-red-700" },
-    { label: "Materials to Reserve", value: data.materialsNeedingReservation, icon: ClipboardPlus, tone: "bg-amber-50 text-amber-700" },
-    { label: "Jobs Missing Materials", value: data.jobsMissingMaterials, icon: TriangleAlert, tone: "bg-orange-50 text-orange-700" },
-    { label: "Active Packages", value: data.activePackages, icon: Gift, tone: "bg-fuchsia-50 text-fuchsia-700" },
-    { label: "Quotes Pending", value: data.quotesPending, icon: FileText, tone: "bg-amber-50 text-amber-700" },
-    { label: "Approved Jobs", value: data.approvedJobs, icon: CalendarCheck, tone: "bg-emerald-50 text-emerald-700" },
-    { label: "Installs This Week", value: data.installsThisWeek, icon: Sparkles, tone: "bg-cyan-50 text-cyan-700" },
-    { label: "Takedowns Upcoming", value: data.takedownsUpcoming, icon: CalendarMinus, tone: "bg-orange-50 text-orange-700" },
-    { label: "Unpaid Balances", value: currency.format(data.unpaidBalances), icon: Banknote, tone: "bg-rose-50 text-rose-700" },
-    { label: "Revenue Quoted", value: currency.format(data.revenueQuoted), icon: FilePlus2, tone: "bg-lime-50 text-lime-700" },
+    { label: "New Leads", value: data.newLeads, icon: ListPlus, tone: "bg-sky-50 text-sky-700", href: "/customers?status=lead" },
+    { label: "Site Visits Scheduled", value: data.siteVisitsScheduled, icon: Route, tone: "bg-violet-50 text-violet-700", href: "/site-visits" },
+    { label: "Measured Visits", value: data.measuredVisits, icon: Ruler, tone: "bg-cyan-50 text-cyan-700", href: "/site-visits" },
+    { label: "Active Catalog Items", value: data.activeCatalogItems, icon: BookOpen, tone: "bg-indigo-50 text-indigo-700", href: "/catalog?active=active" },
+    { label: "Low Stock Items", value: data.lowStockItems, icon: TriangleAlert, tone: "bg-red-50 text-red-700", href: "/catalog?low=yes" },
+    { label: "Materials to Reserve", value: data.materialsNeedingReservation, icon: ClipboardPlus, tone: "bg-amber-50 text-amber-700", href: "/jobs" },
+    { label: "Jobs Missing Materials", value: data.jobsMissingMaterials, icon: TriangleAlert, tone: "bg-orange-50 text-orange-700", href: "/jobs" },
+    { label: "Active Packages", value: data.activePackages, icon: Gift, tone: "bg-fuchsia-50 text-fuchsia-700", href: "/packages?active=active" },
+    { label: "Quotes Pending", value: data.quotesPending, icon: FileText, tone: "bg-amber-50 text-amber-700", href: "/quotes?status=pending" },
+    { label: "Approved Jobs", value: data.approvedJobs, icon: CalendarCheck, tone: "bg-emerald-50 text-emerald-700", href: "/jobs" },
+    { label: "Installs This Week", value: data.installsThisWeek, icon: Sparkles, tone: "bg-cyan-50 text-cyan-700", href: "/schedule?view=week" },
+    { label: "Takedowns Upcoming", value: data.takedownsUpcoming, icon: CalendarMinus, tone: "bg-orange-50 text-orange-700", href: "/schedule?view=upcoming" },
+    { label: "Unpaid Balances", value: currency.format(data.unpaidBalances), icon: Banknote, tone: "bg-rose-50 text-rose-700", href: "/jobs" },
+    { label: "Revenue Quoted", value: currency.format(data.revenueQuoted), icon: FilePlus2, tone: "bg-lime-50 text-lime-700", href: "/quotes" },
   ];
 
   const quickActions = [
@@ -86,13 +86,15 @@ export default async function DashboardPage() {
       <section aria-labelledby="business-overview-title">
         <h2 id="business-overview-title" className="sr-only">Business overview</h2>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {kpis.map(({ label, value, icon: Icon, tone }) => (
-            <Card key={label} className="shadow-none">
-              <CardContent className="flex items-start justify-between gap-4 p-4 sm:p-5">
-                <div><p className="text-sm font-medium text-slate-600">{label}</p><p className="mt-2 text-2xl font-extrabold tracking-tight text-slate-950">{value}</p></div>
-                <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${tone}`}><Icon aria-hidden="true" className="size-5" /></span>
-              </CardContent>
-            </Card>
+          {kpis.map(({ label, value, icon: Icon, tone, href }) => (
+            <Link key={label} href={href} aria-label={`View ${label}: ${value}`} className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2">
+              <Card className="h-full shadow-none transition-all group-hover:-translate-y-0.5 group-hover:border-amber-300 group-hover:shadow-md">
+                <CardContent className="flex items-start justify-between gap-4 p-4 sm:p-5">
+                  <div><p className="text-sm font-medium text-slate-600 transition-colors group-hover:text-slate-900">{label}</p><p className="mt-2 text-2xl font-extrabold tracking-tight text-slate-950">{value}</p></div>
+                  <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-105 ${tone}`}><Icon aria-hidden="true" className="size-5" /></span>
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </div>
       </section>
