@@ -2,8 +2,8 @@
 
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { AddressAutofill } from "@mapbox/search-js-react";
 import { createCustomerAction, updateCustomerAction } from "@/app/actions/customers";
+import { ClientAddressAutofill, type AutofillResponse } from "@/components/customers/client-address-autofill";
 import { FormField } from "@/components/customers/form-field";
 import { FormMessage } from "@/components/auth/form-fields";
 import { Button } from "@/components/ui/button";
@@ -21,18 +21,6 @@ interface AddressValue {
   zip: string;
   latitude: number | null;
   longitude: number | null;
-}
-
-interface AutofillResponse {
-  features: Array<{
-    geometry: { coordinates: number[] };
-    properties: {
-      address_line1?: string;
-      address_level1?: string;
-      address_level2?: string;
-      postcode?: string;
-    };
-  }>;
 }
 
 const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN?.trim() ?? "";
@@ -55,7 +43,7 @@ function AddressFields({ prefix, value, onChange, required = false }: { prefix: 
   };
 
   return <>
-    <FormField label="Street" required={required}>{mapboxToken ? <AddressAutofill accessToken={mapboxToken} options={{ country: "US", language: "en" }} onRetrieve={handleRetrieve}>{streetInput}</AddressAutofill> : streetInput}</FormField>
+    <FormField label="Street" required={required}>{mapboxToken ? <ClientAddressAutofill accessToken={mapboxToken} onRetrieve={handleRetrieve}>{streetInput}</ClientAddressAutofill> : streetInput}</FormField>
     <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_100px_140px]">
       <FormField label="City" required={required}><Input name={`${prefix}_city`} autoComplete={`${prefix === "billing" ? "billing" : "shipping"} address-level2`} value={value.city} onChange={(event) => update("city", event.target.value)} required={required} /></FormField>
       <FormField label="State" required={required}><Input name={`${prefix}_state`} autoComplete={`${prefix === "billing" ? "billing" : "shipping"} address-level1`} value={value.state} onChange={(event) => update("state", event.target.value.toUpperCase())} maxLength={2} placeholder="PA" required={required} /></FormField>
