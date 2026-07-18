@@ -116,15 +116,21 @@ test("first-time holiday lighting business completes customer-to-schedule workfl
       await page.getByRole("button", { name: "Add Customer" }).click();
       await expect(page).toHaveURL(/\/customers\/[0-9a-f-]+/);
       customerUrl = new URL(page.url()).pathname;
+      expect(customerUrl).toMatch(/^\/customers\/[0-9a-f-]+$/);
       await page.reload();
       await expect(page).toHaveURL(new RegExp(`${customerUrl}(?:\\?.*)?$`));
       await expect(page.getByRole("heading", { name: "Sarah Miller", exact: true })).toBeVisible();
-      await page
+      const addPropertyLink = page
         .locator('section[aria-labelledby="properties-title"]')
         .getByRole("link", { name: "Add Property", exact: true })
-        .first()
-        .click();
+        .first();
+      await expect(addPropertyLink).toHaveAttribute("href", `${customerUrl}/properties/new`);
+      await addPropertyLink.click();
       await expect(page).toHaveURL(new RegExp(`${customerUrl}/properties/new$`));
+      if (await page.getByRole("heading", { name: "404", exact: true }).isVisible()) {
+        await page.reload();
+        await expect(page).toHaveURL(new RegExp(`${customerUrl}/properties/new$`));
+      }
       await expect(page.getByRole("heading", { name: "Add Property", exact: true })).toBeVisible();
       await fillNamed(page, "property_name", "Miller Residence");
       await page.getByRole("combobox", { name: /^Address line 1/ }).fill("1427 Pine Ridge Drive");

@@ -52,20 +52,20 @@ export default async function DashboardPage() {
   const firstName = profile.first_name?.trim();
 
   const kpis = [
-    { label: "New Leads", value: data.newLeads, icon: ListPlus, tone: "bg-sky-50 text-sky-700", href: "/customers?status=lead" },
-    { label: "Site Visits Scheduled", value: data.siteVisitsScheduled, icon: Route, tone: "bg-violet-50 text-violet-700", href: "/site-visits" },
-    { label: "Measured Visits", value: data.measuredVisits, icon: Ruler, tone: "bg-cyan-50 text-cyan-700", href: "/site-visits" },
-    { label: "Active Catalog Items", value: data.activeCatalogItems, icon: BookOpen, tone: "bg-indigo-50 text-indigo-700", href: "/catalog?active=active" },
+    { label: "New Leads", value: data.newLeads, icon: ListPlus, tone: "bg-slate-100 text-[#17324d]", href: "/customers?status=lead" },
+    { label: "Site Visits Scheduled", value: data.siteVisitsScheduled, icon: Route, tone: "bg-amber-50 text-amber-800", href: "/site-visits" },
+    { label: "Measured Visits", value: data.measuredVisits, icon: Ruler, tone: "bg-emerald-50 text-emerald-800", href: "/site-visits" },
+    { label: "Active Catalog Items", value: data.activeCatalogItems, icon: BookOpen, tone: "bg-slate-100 text-[#17324d]", href: "/catalog?active=active" },
     { label: "Low Stock Items", value: data.lowStockItems, icon: TriangleAlert, tone: "bg-red-50 text-red-700", href: "/catalog?low=yes" },
-    { label: "Materials to Reserve", value: data.materialsNeedingReservation, icon: ClipboardPlus, tone: "bg-amber-50 text-amber-700", href: "/jobs" },
-    { label: "Jobs Missing Materials", value: data.jobsMissingMaterials, icon: TriangleAlert, tone: "bg-orange-50 text-orange-700", href: "/jobs" },
-    { label: "Active Packages", value: data.activePackages, icon: Gift, tone: "bg-fuchsia-50 text-fuchsia-700", href: "/packages?active=active" },
-    { label: "Quotes Pending", value: data.quotesPending, icon: FileText, tone: "bg-amber-50 text-amber-700", href: "/quotes?status=pending" },
-    { label: "Approved Jobs", value: data.approvedJobs, icon: CalendarCheck, tone: "bg-emerald-50 text-emerald-700", href: "/jobs" },
-    { label: "Installs This Week", value: data.installsThisWeek, icon: Sparkles, tone: "bg-cyan-50 text-cyan-700", href: "/schedule?view=week" },
-    { label: "Takedowns Upcoming", value: data.takedownsUpcoming, icon: CalendarMinus, tone: "bg-orange-50 text-orange-700", href: "/schedule?view=upcoming" },
+    { label: "Materials to Reserve", value: data.materialsNeedingReservation, icon: ClipboardPlus, tone: "bg-amber-50 text-amber-800", href: "/jobs" },
+    { label: "Jobs Missing Materials", value: data.jobsMissingMaterials, icon: TriangleAlert, tone: "bg-red-50 text-red-700", href: "/jobs" },
+    { label: "Active Packages", value: data.activePackages, icon: Gift, tone: "bg-emerald-50 text-emerald-800", href: "/packages?active=active" },
+    { label: "Quotes Pending", value: data.quotesPending, icon: FileText, tone: "bg-amber-50 text-amber-800", href: "/quotes?status=pending" },
+    { label: "Approved Jobs", value: data.approvedJobs, icon: CalendarCheck, tone: "bg-emerald-50 text-emerald-800", href: "/jobs" },
+    { label: "Installs This Week", value: data.installsThisWeek, icon: Sparkles, tone: "bg-emerald-50 text-emerald-800", href: "/schedule?view=week" },
+    { label: "Takedowns Upcoming", value: data.takedownsUpcoming, icon: CalendarMinus, tone: "bg-amber-50 text-amber-800", href: "/schedule?view=upcoming" },
     { label: "Unpaid Balances", value: currency.format(data.unpaidBalances), icon: Banknote, tone: "bg-rose-50 text-rose-700", href: "/jobs" },
-    { label: "Revenue Quoted", value: currency.format(data.revenueQuoted), icon: FilePlus2, tone: "bg-lime-50 text-lime-700", href: "/quotes" },
+    { label: "Revenue Quoted", value: currency.format(data.revenueQuoted), icon: FilePlus2, tone: "bg-slate-100 text-[#17324d]", href: "/quotes" },
   ];
 
   const quickActions = [
@@ -87,8 +87,8 @@ export default async function DashboardPage() {
         <h2 id="business-overview-title" className="sr-only">Business overview</h2>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {kpis.map(({ label, value, icon: Icon, tone, href }) => (
-            <Link key={label} href={href} aria-label={`View ${label}: ${value}`} className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2">
-              <Card className="h-full shadow-none transition-all group-hover:-translate-y-0.5 group-hover:border-amber-300 group-hover:shadow-md">
+            <Link key={label} href={href} aria-label={`View ${label}: ${value}`} className="group block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2">
+              <Card className="h-full shadow-none transition-all group-hover:-translate-y-0.5 group-hover:border-amber-300 group-hover:shadow-[0_12px_30px_rgba(11,31,51,0.08)]">
                 <CardContent className="flex items-start justify-between gap-4 p-4 sm:p-5">
                   <div><p className="text-sm font-medium text-slate-600 transition-colors group-hover:text-slate-900">{label}</p><p className="mt-2 text-2xl font-extrabold tracking-tight text-slate-950">{value}</p></div>
                   <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-105 ${tone}`}><Icon aria-hidden="true" className="size-5" /></span>
@@ -112,13 +112,13 @@ export default async function DashboardPage() {
 
       <div className="grid gap-6 xl:grid-cols-2">
         <section aria-labelledby="today-title">
-          <Card className="h-full">
+              <Card className="h-full overflow-hidden">
             <CardHeader><h2 id="today-title" className="text-lg font-bold text-slate-950">Today’s Schedule</h2><p className="mt-1 text-sm text-slate-500">Visits and field work happening today.</p></CardHeader>
             <CardContent>{data.todaysSchedule.length ? <ScheduleList events={data.todaysSchedule} /> : <EmptyState compact title="Your day is clear" description="No visits, installs, or takedowns scheduled for today." />}</CardContent>
           </Card>
         </section>
         <section aria-labelledby="upcoming-title">
-          <Card className="h-full">
+          <Card className="h-full overflow-hidden">
             <CardHeader><h2 id="upcoming-title" className="text-lg font-bold text-slate-950">Upcoming This Week</h2><p className="mt-1 text-sm text-slate-500">The next seven days at a glance.</p></CardHeader>
             <CardContent>{data.upcomingSchedule.length ? <ScheduleList events={data.upcomingSchedule} /> : <EmptyState compact title="No upcoming field work" description="Scheduled visits, installs, and takedowns will appear here." actionLabel="View Schedule" actionHref="/schedule" />}</CardContent>
           </Card>

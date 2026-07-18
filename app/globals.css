@@ -1,12 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f5f7f4;
-  --foreground: #16221d;
-  --evergreen: #17613f;
-  --evergreen-dark: #104a31;
-  --gold: #a8792c;
-  --border: #dfe6e1;
+  --background: #f3f5f7;
+  --foreground: #102033;
+  --navy: #0b1f33;
+  --navy-soft: #17324d;
+  --evergreen: #14543d;
+  --evergreen-dark: #0d3f2e;
+  --gold: #b88a3b;
+  --gold-dark: #8e6728;
+  --surface: #fffefb;
+  --border: #dbe1e7;
 }
 
 * {
@@ -34,25 +38,26 @@ select {
 }
 
 ::selection {
-  background: #d8eadf;
-  color: #104a31;
+  background: #f2e4c5;
+  color: var(--navy);
 }
 
-:focus-visible { outline-color: var(--evergreen); }
+:focus-visible { outline-color: var(--gold-dark); }
 
 /* Compatibility layer for older screens that still use the original amber
    utility names. This keeps the visual system consistent without changing
    their behavior. */
-.bg-amber-400 { background-color: var(--evergreen) !important; }
-.hover\:bg-amber-300:hover { background-color: var(--evergreen-dark) !important; }
-.text-amber-800, .text-amber-700 { color: #17613f !important; }
-.bg-amber-100, .bg-amber-50 { background-color: #edf6f0 !important; }
-.border-amber-200, .border-amber-300 { border-color: #bad8c5 !important; }
-.hover\:bg-amber-50:hover { background-color: #edf6f0 !important; }
-.focus-visible\:ring-amber-500:focus-visible { --tw-ring-color: #27835a !important; }
+.bg-amber-400 { background-color: var(--gold) !important; }
+.hover\:bg-amber-300:hover { background-color: var(--gold-dark) !important; }
+.text-amber-800, .text-amber-700 { color: var(--gold-dark) !important; }
+.bg-amber-100, .bg-amber-50 { background-color: #faf3e4 !important; }
+.border-amber-200, .border-amber-300 { border-color: #e5cca0 !important; }
+.hover\:bg-amber-50:hover { background-color: #faf3e4 !important; }
+.focus-visible\:ring-amber-500:focus-visible { --tw-ring-color: var(--gold) !important; }
 
 table tbody tr { transition: background-color 150ms ease; }
-table tbody tr:hover { background: #f7faf8; }
+table thead { background: #f5f7f9; color: #536273; }
+table tbody tr:hover { background: #faf8f1; }
 
 /* Customer-facing proposal palette */
 body:has(.proposal-print) {
