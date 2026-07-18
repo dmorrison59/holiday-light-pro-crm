@@ -15,8 +15,29 @@ const date = (value: string) => new Intl.DateTimeFormat("en-US", { dateStyle: "m
 const FILE_BUCKET = "holiday-light-files";
 const allowedMimeTypes = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
 const safeName = (name: string) => name.toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/-+/g, "-").replace(/^[-.]+/, "").slice(-120) || "upload";
-const uploadError = (message: string) => /bucket.*not found|not found.*bucket/i.test(message) ? "Storage bucket not found. Create the holiday-light-files bucket in Supabase." : /permission|policy|row-level security|unauthorized/i.test(message) ? "You do not have permission to upload this file. Check the Supabase Storage policies." : "The file could not be uploaded. Please try again.";
+const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+type UploadPhase = "browser-client" | "auth" | "storage-path" | "storage-upload" | "metadata-insert" | "storage-rollback";
+const uploadError = (message: string) => /bucket.*not found|not found.*bucket/i.test(message) ? "Storage upload failed: the private holiday-light-files bucket was not found." : /permission|policy|row-level security|unauthorized|forbidden/i.test(message) ? "Storage upload was rejected by the organization storage policy." : /timeout|timed out|abort/i.test(message) ? "Storage upload timed out before Supabase responded. Please try again." : /invalid.*(key|path)|object.*name|resource.*name/i.test(message) ? "Storage upload failed because the generated object path was rejected." : "Supabase Storage rejected the upload. Please try again or contact support.";
 const metadataError = (message: string) => /column.*uploaded_by/i.test(message) ? "File metadata migration is required. Run the file metadata migration in Supabase, then try again." : /permission|policy|row-level security|unauthorized/i.test(message) ? "You do not have permission to save this file. Check that your account belongs to this organization." : /foreign key/i.test(message) ? "This file could not be attached to the requested record. Refresh the page and try again." : "The file uploaded, but its details could not be saved. The upload was rolled back.";
+
+function reportDevelopmentUploadError(phase: UploadPhase, error: unknown) {
+  if (process.env.NODE_ENV !== "development") return;
+  const details = error && typeof error === "object" ? error as { name?: unknown; code?: unknown; status?: unknown } : {};
+  console.error("File upload failed", { phase, name: details.name, code: details.code, status: details.status });
+}
+
+function unexpectedUploadError(phase: UploadPhase, error: unknown) {
+  reportDevelopmentUploadError(phase, error);
+  const name = error instanceof Error ? error.name : "";
+  const message = error instanceof Error ? error.message : "";
+  if (phase === "browser-client") return "Upload could not start because the Supabase browser client is missing or invalid. Check the production public Supabase configuration.";
+  if (phase === "auth") return "Upload could not start because your session could not be verified. Sign in again and retry.";
+  if (phase === "storage-path") return "Upload could not start because a valid organization storage path could not be created.";
+  if (phase === "storage-upload" && (/abort|timeout/i.test(name) || /abort|timeout|timed out/i.test(message))) return "Storage upload timed out before Supabase responded. Please try again.";
+  if (phase === "storage-upload") return "The browser could not complete the request to Supabase Storage. Check the browser console for a blocked request or CORS error.";
+  if (phase === "metadata-insert") return "The file reached Storage, but the files metadata request could not be completed. The app attempted to roll back the stored object.";
+  return "The file metadata save failed, and the stored object could not be rolled back automatically. Contact support.";
+}
 
 export function FileManager({ files, organizationId, relatedType, relatedId, photoTypes, emptyText }: { files: AppFile[]; organizationId: string; relatedType: string; relatedId: string; photoTypes: string[]; emptyText: string }) {
   const router = useRouter();
@@ -38,21 +59,31 @@ export function FileManager({ files, organizationId, relatedType, relatedId, pho
 
     setPending(true);
     let uploaded = 0;
+    let phase: UploadPhase = "browser-client";
     try {
       const supabase = getSupabaseBrowserClient();
       const description = String(data.get("description") ?? "").trim() || null;
       const photoType = String(data.get("photo_type") ?? "").trim() || null;
       const customerVisible = relatedType === "quotes" && data.get("customer_visible") === "on";
+      phase = "auth";
       const { data: auth, error: authError } = await supabase.auth.getUser();
-      if (authError || !auth.user) throw new Error("SESSION_EXPIRED");
+      if (authError || !auth.user) return setState({ error: "Your session is missing or expired. Sign in again before uploading." });
+
+      if (!organizationId || !uuid.test(organizationId)) return setState({ error: "Upload could not start because this page does not have a valid organization ID." });
+      if (!relatedId || !uuid.test(relatedId)) return setState({ error: "Upload could not start because the related record ID is invalid. Refresh the page and try again." });
 
       for (const file of selected) {
+        phase = "storage-path";
         const path = `${organizationId}/${relatedType}/${relatedId}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${safeName(file.name)}`;
+        if (!path.startsWith(`${organizationId}/`) || path.startsWith("/") || path.includes("//")) return setState({ error: "Upload could not start because the organization storage path is invalid." });
+        phase = "storage-upload";
         const { error: storageError } = await supabase.storage.from(FILE_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
         if (storageError) return setState({ error: uploadError(storageError.message) });
 
+        phase = "metadata-insert";
         const { error: insertError } = await supabase.from("files").insert({ organization_id: organizationId, related_type: relatedType, related_id: relatedId, file_url: path, storage_path: path, file_name: file.name, file_type: file.type.startsWith("image/") ? "image" : "document", file_size: file.size, mime_type: file.type, description, photo_type: photoType, customer_visible: customerVisible, uploaded_by: auth.user.id });
         if (insertError) {
+          phase = "storage-rollback";
           const { error: rollbackError } = await supabase.storage.from(FILE_BUCKET).remove([path]);
           const message = metadataError(insertError.message);
           return setState({ error: rollbackError ? `${message} The stored object could not be removed automatically; contact support.` : message });
@@ -63,7 +94,7 @@ export function FileManager({ files, organizationId, relatedType, relatedId, pho
       form.reset();
       setState({ success: `${uploaded} ${uploaded === 1 ? "file" : "files"} uploaded.` });
     } catch (error) {
-      setState({ error: error instanceof Error && error.message === "SESSION_EXPIRED" ? "Your session has expired. Sign in and try again." : "The upload could not be completed. Check your connection and try again." });
+      setState({ error: unexpectedUploadError(phase, error) });
     } finally {
       setPending(false);
       if (uploaded > 0) router.refresh();
@@ -86,6 +117,6 @@ export function FileManager({ files, organizationId, relatedType, relatedId, pho
       <Button type="submit" disabled={pending} className="w-full sm:w-auto"><Upload className="mr-2 size-4" />{pending ? "Uploading…" : "Upload Photos"}</Button>
     </form>
     {deleteMessage.error ? <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm font-medium text-red-800">{deleteMessage.error}</p> : null}{deleteMessage.success ? <p role="status" className="rounded-lg bg-emerald-50 p-3 text-sm font-medium text-emerald-800">{deleteMessage.success}</p> : null}
-    {files.length ? <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{files.map((file) => { const image = file.mime_type?.startsWith("image/") || file.file_type === "image"; return <article key={file.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white"><a href={file.preview_url || undefined} target="_blank" rel="noreferrer" className="block bg-slate-100" aria-label={`Open ${file.file_name}`}>{image && file.preview_url ? <img src={file.preview_url} alt={file.description || file.file_name} className="h-44 w-full object-cover" /> : <span className="flex h-32 items-center justify-center text-slate-400">{image ? <ImageIcon className="size-10" /> : <FileText className="size-10" />}</span>}</a><div className="space-y-2 p-4"><p className="break-words text-sm font-bold text-slate-950">{file.file_name}</p>{file.photo_type ? <p className="text-xs font-semibold text-amber-800">{file.photo_type}</p> : null}{file.description ? <p className="text-sm leading-5 text-slate-600">{file.description}</p> : null}<p className="text-xs text-slate-500">{date(file.created_at)}</p><div className="flex gap-2 pt-1">{file.preview_url ? <a href={file.preview_url} target="_blank" rel="noreferrer" className="inline-flex h-9 flex-1 items-center justify-center rounded-xl border border-slate-200 px-3 text-sm font-semibold hover:bg-slate-50"><ExternalLink className="mr-1.5 size-4" />Open</a> : null}<Button type="button" size="sm" variant="danger" disabled={deleting} onClick={() => remove(file.id)}><Trash2 className="mr-1.5 size-4" />Delete</Button></div></div></article>; })}</div> : <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center"><ImageIcon className="mx-auto size-7 text-slate-400" /><p className="mt-3 text-sm text-slate-600">{emptyText}</p></div>}
+    {files.length ? <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{files.map((file) => { const image = file.mime_type?.startsWith("image/") || file.file_type === "image"; return <article key={file.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white"><a href={file.preview_url || undefined} target="_blank" rel="noreferrer" className="block bg-slate-100" aria-label={`Open ${file.file_name}`}>{image && file.preview_url ? <img src={file.preview_url} alt={file.description || file.file_name} className="h-44 w-full object-cover" /> : <span className="flex h-32 items-center justify-center text-slate-400">{image ? <ImageIcon className="size-10" /> : <FileText className="size-10" />}</span>}</a><div className="space-y-2 p-4"><p className="break-words text-sm font-bold text-slate-950">{file.file_name}</p>{file.preview_error ? <p role="alert" className="text-xs font-medium text-red-700">{file.preview_error}</p> : null}{file.photo_type ? <p className="text-xs font-semibold text-amber-800">{file.photo_type}</p> : null}{file.description ? <p className="text-sm leading-5 text-slate-600">{file.description}</p> : null}<p className="text-xs text-slate-500">{date(file.created_at)}</p><div className="flex gap-2 pt-1">{file.preview_url ? <a href={file.preview_url} target="_blank" rel="noreferrer" className="inline-flex h-9 flex-1 items-center justify-center rounded-xl border border-slate-200 px-3 text-sm font-semibold hover:bg-slate-50"><ExternalLink className="mr-1.5 size-4" />Open</a> : null}<Button type="button" size="sm" variant="danger" disabled={deleting} onClick={() => remove(file.id)}><Trash2 className="mr-1.5 size-4" />Delete</Button></div></div></article>; })}</div> : <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center"><ImageIcon className="mx-auto size-7 text-slate-400" /><p className="mt-3 text-sm text-slate-600">{emptyText}</p></div>}
   </div>;
 }
