@@ -53,7 +53,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
       {navigation.map((item) => {
         const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
         return (
-          <Link key={item.href} href={item.href} onClick={onNavigate} className={cn("flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400", active ? "bg-[#0f6a52] text-white shadow-sm ring-1 ring-[#3b806d]" : "text-slate-300 hover:bg-white/8 hover:text-white")}>
+          <Link key={item.href} href={item.href} onClick={onNavigate} className={cn("flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400", active ? "bg-[#16624f] text-white shadow-sm ring-1 ring-[#4b806f]" : "text-slate-300 hover:bg-white/8 hover:text-white")}>
             <item.icon aria-hidden="true" className="size-[18px] shrink-0" />{item.name}
           </Link>
         );
@@ -98,7 +98,7 @@ export function AppShell({ children, organizationName, userEmail }: { children: 
         <AccountSummary organizationName={organizationName} userEmail={userEmail} />
       </aside>
 
-      <main className="lg:pl-64"><div className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8 xl:p-10">{children}</div></main>
+      <main className="lg:pl-64"><div className="mx-auto w-full max-w-7xl p-4 sm:p-6 lg:px-7 lg:py-8 xl:px-8 xl:py-10">{children}</div></main>
     </div>
   );
 }
