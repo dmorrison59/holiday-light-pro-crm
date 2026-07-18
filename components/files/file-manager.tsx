@@ -16,6 +16,7 @@ const FILE_BUCKET = "holiday-light-files";
 const allowedMimeTypes = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
 const safeName = (name: string) => name.toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/-+/g, "-").replace(/^[-.]+/, "").slice(-120) || "upload";
 const uploadError = (message: string) => /bucket.*not found|not found.*bucket/i.test(message) ? "Storage bucket not found. Create the holiday-light-files bucket in Supabase." : /permission|policy|row-level security|unauthorized/i.test(message) ? "You do not have permission to upload this file. Check the Supabase Storage policies." : "The file could not be uploaded. Please try again.";
+const metadataError = (message: string) => /column.*uploaded_by/i.test(message) ? "File metadata migration is required. Run the file metadata migration in Supabase, then try again." : /permission|policy|row-level security|unauthorized/i.test(message) ? "You do not have permission to save this file. Check that your account belongs to this organization." : /foreign key/i.test(message) ? "This file could not be attached to the requested record. Refresh the page and try again." : "The file uploaded, but its details could not be saved. The upload was rolled back.";
 
 export function FileManager({ files, organizationId, relatedType, relatedId, photoTypes, emptyText }: { files: AppFile[]; organizationId: string; relatedType: string; relatedId: string; photoTypes: string[]; emptyText: string }) {
   const router = useRouter();
@@ -36,30 +37,37 @@ export function FileManager({ files, organizationId, relatedType, relatedId, pho
     if (selected.some((file) => !allowedMimeTypes.has(file.type))) return setState({ error: "Unsupported file type. Upload a JPG, PNG, WebP, or PDF file." });
 
     setPending(true);
-    const supabase = getSupabaseBrowserClient();
-    const description = String(data.get("description") ?? "").trim() || null;
-    const photoType = String(data.get("photo_type") ?? "").trim() || null;
-    const customerVisible = relatedType === "quotes" && data.get("customer_visible") === "on";
-    const { data: auth } = await supabase.auth.getUser();
-    if (!auth.user) { setPending(false); return setState({ error: "Your session has expired. Sign in and try again." }); }
-
     let uploaded = 0;
-    for (const file of selected) {
-      const path = `${organizationId}/${relatedType}/${relatedId}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${safeName(file.name)}`;
-      const { error: storageError } = await supabase.storage.from(FILE_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
-      if (storageError) { setPending(false); return setState({ error: uploadError(storageError.message) }); }
-      const { error: metadataError } = await supabase.from("files").insert({ organization_id: organizationId, related_type: relatedType, related_id: relatedId, file_url: path, storage_path: path, file_name: file.name, file_type: file.type.startsWith("image/") ? "image" : "document", file_size: file.size, mime_type: file.type, description, photo_type: photoType, customer_visible: customerVisible, uploaded_by: auth.user.id });
-      if (metadataError) {
-        await supabase.storage.from(FILE_BUCKET).remove([path]);
-        setPending(false);
-        return setState({ error: /column.*uploaded_by/i.test(metadataError.message) ? "File metadata migration is required. Run the Task 14 migration in Supabase, then try again." : /permission|policy|row-level security/i.test(metadataError.message) ? "You do not have permission to save this file. Check the files table policies." : "The file uploaded, but its details could not be saved. The upload was rolled back." });
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const description = String(data.get("description") ?? "").trim() || null;
+      const photoType = String(data.get("photo_type") ?? "").trim() || null;
+      const customerVisible = relatedType === "quotes" && data.get("customer_visible") === "on";
+      const { data: auth, error: authError } = await supabase.auth.getUser();
+      if (authError || !auth.user) throw new Error("SESSION_EXPIRED");
+
+      for (const file of selected) {
+        const path = `${organizationId}/${relatedType}/${relatedId}/${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${safeName(file.name)}`;
+        const { error: storageError } = await supabase.storage.from(FILE_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
+        if (storageError) return setState({ error: uploadError(storageError.message) });
+
+        const { error: insertError } = await supabase.from("files").insert({ organization_id: organizationId, related_type: relatedType, related_id: relatedId, file_url: path, storage_path: path, file_name: file.name, file_type: file.type.startsWith("image/") ? "image" : "document", file_size: file.size, mime_type: file.type, description, photo_type: photoType, customer_visible: customerVisible, uploaded_by: auth.user.id });
+        if (insertError) {
+          const { error: rollbackError } = await supabase.storage.from(FILE_BUCKET).remove([path]);
+          const message = metadataError(insertError.message);
+          return setState({ error: rollbackError ? `${message} The stored object could not be removed automatically; contact support.` : message });
+        }
+        uploaded += 1;
       }
-      uploaded += 1;
+
+      form.reset();
+      setState({ success: `${uploaded} ${uploaded === 1 ? "file" : "files"} uploaded.` });
+    } catch (error) {
+      setState({ error: error instanceof Error && error.message === "SESSION_EXPIRED" ? "Your session has expired. Sign in and try again." : "The upload could not be completed. Check your connection and try again." });
+    } finally {
+      setPending(false);
+      if (uploaded > 0) router.refresh();
     }
-    form.reset();
-    setPending(false);
-    setState({ success: `${uploaded} ${uploaded === 1 ? "file" : "files"} uploaded.` });
-    router.refresh();
   }
 
   function remove(id: string) {
