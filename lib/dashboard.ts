@@ -24,6 +24,7 @@ export interface DashboardData {
   jobsMissingMaterials: number;
   activePackages: number;
   quotesPending: number;
+  approvedQuotesReadyToConvert: number;
   approvedJobs: number;
   installsThisWeek: number;
   takedownsUpcoming: number;
@@ -60,6 +61,7 @@ export async function getDashboardData(organizationId: string): Promise<Dashboar
     supabase.from("customers").select("id", { count: "exact", head: true }).eq("organization_id", organizationId).eq("status", "lead"),
     supabase.from("site_visits").select("id", { count: "exact", head: true }).eq("organization_id", organizationId).gte("visit_date", `${todayKey}T00:00:00`),
     supabase.from("quotes").select("id", { count: "exact", head: true }).eq("organization_id", organizationId).in("status", ["draft", "sent"]),
+    supabase.from("quotes").select("id").eq("organization_id", organizationId).eq("status", "approved"),
     supabase.from("jobs").select("id", { count: "exact", head: true }).eq("organization_id", organizationId).in("status", ["approved", "scheduled", "materials_ready", "installed", "takedown_scheduled"]),
     supabase.from("jobs").select("id", { count: "exact", head: true }).eq("organization_id", organizationId).gte("install_date", todayKey).lte("install_date", weekEndKey),
     supabase.from("jobs").select("id", { count: "exact", head: true }).eq("organization_id", organizationId).gte("takedown_date", todayKey),
@@ -76,7 +78,7 @@ export async function getDashboardData(organizationId: string): Promise<Dashboar
     supabase.from("payments").select("job_id, amount, payment_type, status").eq("organization_id", organizationId),
   ]);
 
-  const [newLeads, siteVisits, quotes, approvedJobs, installs, takedowns, unpaid, revenue, todaySchedule, upcomingSchedule, todayVisits, upcomingVisits, measuredVisitRows, catalogRows, activePackages, jobPayments, paymentRows] = results;
+  const [newLeads, siteVisits, quotes, approvedQuoteRows, approvedJobs, installs, takedowns, unpaid, revenue, todaySchedule, upcomingSchedule, todayVisits, upcomingVisits, measuredVisitRows, catalogRows, activePackages, jobPayments, paymentRows] = results;
   const [neededMaterials, activeJobRows, materialJobRows] = await Promise.all([
     supabase.from("job_materials").select("id", { count: "exact", head: true }).eq("organization_id", organizationId).eq("status", "Needed"),
     supabase.from("jobs").select("id").eq("organization_id", organizationId).not("status", "in", "(complete,canceled)"),
@@ -95,6 +97,7 @@ export async function getDashboardData(organizationId: string): Promise<Dashboar
     jobsMissingMaterials: (activeJobRows.data ?? []).filter((job) => !(materialJobRows.data ?? []).some((material) => material.job_id === job.id)).length,
     activePackages: activePackages.count ?? 0,
     quotesPending: quotes.count ?? 0,
+    approvedQuotesReadyToConvert: (approvedQuoteRows.data ?? []).filter((quote) => !(jobPayments.data ?? []).some((job) => job.quote_id === quote.id)).length,
     approvedJobs: approvedJobs.count ?? 0,
     installsThisWeek: installs.count ?? 0,
     takedownsUpcoming: takedowns.count ?? 0,

@@ -1,5 +1,5 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
-import { cleanupConfirmedTestUser, createConfirmedTestUser, uniqueTestEmail } from "./support/supabase-admin";
+import { cleanupConfirmedTestUser, createConfirmedTestUser, seedRequiredCatalogItems, uniqueTestEmail } from "./support/supabase-admin";
 
 const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`.toLowerCase();
 const ownerEmail = uniqueTestEmail(stamp, "primary");
@@ -83,12 +83,8 @@ test("first-time holiday lighting business completes customer-to-schedule workfl
     });
 
     await stage("Load required starter pricing and create warm-white package", async () => {
+      await seedRequiredCatalogItems(primaryUserId, ownerEmail);
       await page.goto("/catalog");
-      const starter = page
-        .getByRole("main")
-        .locator("header")
-        .getByRole("button", { name: "Load Starter Catalog", exact: true });
-      if (await starter.count()) await starter.click();
       await expect(
         page.getByRole("table").getByText("C9 Warm White Roofline Lights", { exact: true }),
       ).toBeVisible();
