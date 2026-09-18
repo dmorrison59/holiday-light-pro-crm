@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { randomUUID } from "node:crypto";
 import { requiredTestEnvironment } from "./test-env";
 
 const TEST_EMAIL_PREFIX = "hlcrm-e2e-";
@@ -55,6 +56,142 @@ export async function seedRequiredCatalogItems(userId: string, expectedEmail: st
     const { error } = await supabase.from("catalog_items").insert(rows);
     if (error) throw new Error(`Unable to create required E2E catalog items: ${error.message}`);
   }
+}
+
+type PublicProposalFixture = {
+  quoteId: string;
+  token: string;
+  customerId: string;
+  propertyId: string;
+  organizationId: string;
+  companyName: string;
+  customerName: string;
+  internalMarker: string;
+};
+
+async function verifiedTestOrganization(userId: string, expectedEmail: string) {
+  if (!expectedEmail.startsWith(TEST_EMAIL_PREFIX)) throw new Error("Refusing E2E proposal setup without the test email prefix.");
+  const supabase = adminClient();
+  const { data: userResult, error: userError } = await supabase.auth.admin.getUserById(userId);
+  if (userError) throw new Error(`Unable to verify E2E proposal user: ${userError.message}`);
+  const user = userResult.user;
+  if (!user || user.email !== expectedEmail || user.user_metadata?.e2e_test !== true || user.user_metadata?.e2e_suite !== "holiday-lights-crm") {
+    throw new Error("Refusing proposal setup because the user lacks the required E2E identity markers.");
+  }
+
+  const { data: profile, error: profileError } = await supabase.from("profiles").select("organization_id").eq("user_id", userId).single();
+  if (profileError || !profile?.organization_id) throw new Error(`Unable to find the E2E organization: ${profileError?.message ?? "no organization returned"}`);
+  return { supabase, organizationId: profile.organization_id };
+}
+
+export async function seedPublicProposalFixture(
+  userId: string,
+  expectedEmail: string,
+  companyName: string,
+  customerFirstName: string,
+): Promise<PublicProposalFixture> {
+  const { supabase, organizationId } = await verifiedTestOrganization(userId, expectedEmail);
+  const token = randomUUID();
+  const internalMarker = `internal-${randomUUID()}`;
+  const customerName = `${customerFirstName} Proposal`;
+
+  const { data: customer, error: customerError } = await supabase.from("customers").insert({
+    organization_id: organizationId,
+    first_name: customerFirstName,
+    last_name: "Proposal",
+    email: expectedEmail,
+    billing_street: "101 Public Test Lane",
+    billing_city: "Greensburg",
+    billing_state: "PA",
+    billing_zip: "15601",
+    status: "quote_sent",
+  }).select("id").single();
+  if (customerError || !customer) throw new Error(`Unable to create proposal customer: ${customerError?.message ?? "no customer returned"}`);
+
+  const { data: property, error: propertyError } = await supabase.from("properties").insert({
+    organization_id: organizationId,
+    customer_id: customer.id,
+    property_name: `${customerFirstName} Test Property`,
+    address_line_1: "101 Public Test Lane",
+    city: "Greensburg",
+    state: "PA",
+    zip: "15601",
+  }).select("id").single();
+  if (propertyError || !property) throw new Error(`Unable to create proposal property: ${propertyError?.message ?? "no property returned"}`);
+
+  const { data: quote, error: quoteError } = await supabase.from("quotes").insert({
+    organization_id: organizationId,
+    customer_id: customer.id,
+    property_id: property.id,
+    quote_number: `E2E-${token.slice(0, 8).toUpperCase()}`,
+    status: "sent",
+    quote_date: "2026-09-17",
+    expiration_date: "2027-09-17",
+    subtotal: "1250",
+    discount: "0",
+    total: "1250",
+    deposit_required: "625",
+    deposit_type: "percentage",
+    deposit_value: "50",
+    balance_due: "625",
+    customer_notes: "Public proposal fixture",
+    internal_notes: internalMarker,
+    proposal_token: token,
+    proposal_sent_at: new Date().toISOString(),
+  }).select("id").single();
+  if (quoteError || !quote) throw new Error(`Unable to create proposal quote: ${quoteError?.message ?? "no quote returned"}`);
+
+  const { error: lineError } = await supabase.from("quote_line_items").insert({
+    organization_id: organizationId,
+    quote_id: quote.id,
+    description: `${customerFirstName} customer-visible lights`,
+    quantity: "100",
+    unit: "ft",
+    unit_price: "12.5",
+    multiplier: "1",
+    line_total: "1250",
+    customer_visible: true,
+    notes: "Customer-safe line item",
+  });
+  if (lineError) throw new Error(`Unable to create proposal line item: ${lineError.message}`);
+
+  return { quoteId: quote.id, token, customerId: customer.id, propertyId: property.id, organizationId, companyName, customerName, internalMarker };
+}
+
+export async function seedCrossTenantProposalFixture(
+  userId: string,
+  expectedEmail: string,
+  foreignCustomerId: string,
+  foreignPropertyId: string,
+) {
+  const { supabase, organizationId } = await verifiedTestOrganization(userId, expectedEmail);
+  const token = randomUUID();
+  const { data, error } = await supabase.from("quotes").insert({
+    organization_id: organizationId,
+    customer_id: foreignCustomerId,
+    property_id: foreignPropertyId,
+    quote_number: `E2E-CROSS-${token.slice(0, 8).toUpperCase()}`,
+    status: "sent",
+    quote_date: "2026-09-17",
+    expiration_date: "2027-09-17",
+    subtotal: "100",
+    discount: "0",
+    total: "100",
+    deposit_required: "50",
+    deposit_type: "percentage",
+    deposit_value: "50",
+    balance_due: "50",
+    proposal_token: token,
+  }).select("id").single();
+  if (error || !data) throw new Error(`Unable to create cross-tenant proposal fixture: ${error?.message ?? "no quote returned"}`);
+  return { quoteId: data.id, token };
+}
+
+export async function getProposalStatus(quoteId: string) {
+  const supabase = adminClient();
+  const { data, error } = await supabase.from("quotes").select("status").eq("id", quoteId).single();
+  if (error || !data) throw new Error(`Unable to read proposal status: ${error?.message ?? "no quote returned"}`);
+  return data.status;
 }
 
 export async function cleanupConfirmedTestUser(userId: string, expectedEmail: string) {

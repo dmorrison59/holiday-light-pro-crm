@@ -1,5 +1,13 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
-import { cleanupConfirmedTestUser, createConfirmedTestUser, seedRequiredCatalogItems, uniqueTestEmail } from "./support/supabase-admin";
+import {
+  cleanupConfirmedTestUser,
+  createConfirmedTestUser,
+  getProposalStatus,
+  seedCrossTenantProposalFixture,
+  seedPublicProposalFixture,
+  seedRequiredCatalogItems,
+  uniqueTestEmail,
+} from "./support/supabase-admin";
 
 const stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`.toLowerCase();
 const ownerEmail = uniqueTestEmail(stamp, "primary");
@@ -240,6 +248,82 @@ test("first-time holiday lighting business completes customer-to-schedule workfl
     const cleanupErrors: string[] = [];
     if (secondaryUserId) await cleanupConfirmedTestUser(secondaryUserId, secondOwnerEmail).catch((error) => cleanupErrors.push(String(error)));
     if (primaryUserId) await cleanupConfirmedTestUser(primaryUserId, ownerEmail).catch((error) => cleanupErrors.push(String(error)));
+    if (cleanupErrors.length) await testInfo.attach("cleanup-errors", { body: cleanupErrors.join("\n"), contentType: "text/plain" });
+  }
+});
+
+test("public proposal RPCs allow token-scoped viewing and decisions without cross-tenant disclosure", async ({ page, context }, testInfo) => {
+  const attachDiagnostics = diagnostics(page, testInfo);
+  const proposalStamp = `${stamp}-proposal`;
+  const primaryEmail = uniqueTestEmail(proposalStamp, "primary");
+  const secondaryEmail = uniqueTestEmail(proposalStamp, "secondary");
+  let primaryUserId = "";
+  let secondaryUserId = "";
+
+  try {
+    primaryUserId = await createConfirmedTestUser(primaryEmail, password, "Primary", "Owner");
+    await loginAndOnboard(page, primaryEmail, "Primary Public Proposal Co");
+    const primary = await seedPublicProposalFixture(
+      primaryUserId,
+      primaryEmail,
+      "Primary Public Proposal Co",
+      "Pat",
+    );
+
+    await context.clearCookies();
+    secondaryUserId = await createConfirmedTestUser(secondaryEmail, password, "Secondary", "Owner");
+    await loginAndOnboard(page, secondaryEmail, "Secondary Public Proposal Co");
+    const secondary = await seedPublicProposalFixture(
+      secondaryUserId,
+      secondaryEmail,
+      "Secondary Public Proposal Co",
+      "Sam",
+    );
+    const crossTenant = await seedCrossTenantProposalFixture(
+      secondaryUserId,
+      secondaryEmail,
+      primary.customerId,
+      primary.propertyId,
+    );
+
+    await context.clearCookies();
+    await page.goto(`/proposal/${primary.token}`);
+    await expect(page.getByRole("heading", { name: "Quote Proposal" })).toBeVisible();
+    await expect(page.getByText(primary.companyName, { exact: true })).toBeVisible();
+    await expect(page.getByText(primary.customerName, { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Pat customer-visible lights", { exact: true })).toBeVisible();
+    await expect(page.getByText(secondary.companyName, { exact: true })).not.toBeVisible();
+    await expect(page.getByText(primary.internalMarker, { exact: true })).not.toBeVisible();
+    expect(await getProposalStatus(primary.quoteId)).toBe("viewed");
+
+    await page.goto("/proposal/00000000-0000-4000-8000-000000000001");
+    await expect(page.getByRole("heading", { name: "Proposal not found." })).toBeVisible();
+    await expect(page.getByText(primary.companyName, { exact: true })).not.toBeVisible();
+    await expect(page.getByText(secondary.companyName, { exact: true })).not.toBeVisible();
+
+    await page.goto(`/proposal/${primary.token}`);
+    await fillNamed(page, "customer_name", primary.customerName);
+    await fillNamed(page, "customer_email", primaryEmail);
+    await page.locator('[name="approval_confirmed"]').check();
+    await page.getByRole("button", { name: "Approve Proposal" }).click();
+    await expect(page.getByText("Proposal approved. Thank you.", { exact: true })).toBeVisible();
+    expect(await getProposalStatus(primary.quoteId)).toBe("approved");
+
+    await page.goto(`/proposal/${secondary.token}`);
+    await fillNamed(page, "decline_reason", "Focused public proposal decline test.");
+    await page.getByRole("button", { name: "Decline Proposal" }).click();
+    await expect(page.getByText("Proposal declined.", { exact: true })).toBeVisible();
+    expect(await getProposalStatus(secondary.quoteId)).toBe("declined");
+
+    await page.goto(`/proposal/${crossTenant.token}`);
+    await expect(page.getByRole("heading", { name: "Proposal not found." })).toBeVisible();
+    await expect(page.getByText(primary.customerName, { exact: true })).not.toBeVisible();
+    await expect(page.getByText(secondary.companyName, { exact: true })).not.toBeVisible();
+  } finally {
+    await attachDiagnostics();
+    const cleanupErrors: string[] = [];
+    if (secondaryUserId) await cleanupConfirmedTestUser(secondaryUserId, secondaryEmail).catch((error) => cleanupErrors.push(String(error)));
+    if (primaryUserId) await cleanupConfirmedTestUser(primaryUserId, primaryEmail).catch((error) => cleanupErrors.push(String(error)));
     if (cleanupErrors.length) await testInfo.attach("cleanup-errors", { body: cleanupErrors.join("\n"), contentType: "text/plain" });
   }
 });

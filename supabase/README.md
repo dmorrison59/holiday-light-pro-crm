@@ -1,6 +1,6 @@
 # Supabase database setup
 
-This directory contains the database foundation for Holiday Light Pro CRM. It creates the MVP tables and sample catalog/package data only. Authentication workflows and Row Level Security policies are intentionally deferred to a later task.
+This directory contains the database foundation, additive migrations, storage guidance, and tenant-scoped Row Level Security policies for Holiday Light Pro CRM.
 
 ## 1. Create a Supabase project
 
@@ -45,6 +45,12 @@ Run `migrations/20260701_quote_rls_policies.sql` to add authenticated organizati
 
 If the project was created before quote deposits/proposals were added, run `migrations/20260701_quote_schema_compatibility.sql`. It safely adds every quote and line-item column used by the current app and reloads the PostgREST schema cache.
 
+Run `migrations/20260706_customer_addresses.sql` and `migrations/20260706_organization_pricing_settings.sql` for structured customer addresses and organization pricing defaults.
+
+Run `migrations/20260717_tenant_scoped_rls.sql` to replace permissive authenticated policies with organization-scoped access across business tables.
+
+Run `migrations/20260813_public_proposal_rpcs.sql` after the quote and tenant-RLS migrations. It adds token-scoped `SECURITY DEFINER` functions for anonymous proposal viewing and decisions without granting anonymous access to the underlying tables.
+
 ## 4. Add seed data
 
 Create at least one row in `organizations`, then paste and run `seed.sql` in the SQL Editor. By default, the seed targets the oldest organization. Edit the `target_organization` CTE to select a specific organization before using it in a shared database.
@@ -53,6 +59,6 @@ The seed is repeatable: existing catalog and package names for the target organi
 
 ## Security note
 
-The schema does not enable Row Level Security yet. Task 3 adds authentication and organization-aware application queries, but those checks are not a substitute for database policies. Before exposing real customer data, add RLS policies that derive the current user's organization through `profiles` and restrict every business table to that `organization_id`.
+Apply the quote RLS and tenant-scoped RLS migrations before exposing real customer data. Authenticated access is restricted through the signed-in user's organization, while public proposals use high-entropy tokens and allowlisted RPC payloads rather than broad anonymous table policies.
 
 For local signup testing, either disable **Confirm email** in the Supabase Auth settings or follow the confirmation link, which returns through `/auth/callback` before onboarding.

@@ -251,6 +251,74 @@ export interface QuoteLineItem {
   updated_at: string;
 }
 
+export interface PublicProposalPayload {
+  quote: Pick<
+    Quote,
+    | "id"
+    | "quote_number"
+    | "status"
+    | "quote_date"
+    | "expiration_date"
+    | "subtotal"
+    | "discount"
+    | "total"
+    | "deposit_required"
+    | "balance_due"
+    | "customer_notes"
+    | "terms"
+    | "proposal_token"
+    | "proposal_viewed_at"
+    | "proposal_sent_at"
+    | "approved_at"
+    | "declined_at"
+    | "customer_approval_name"
+    | "customer_approval_email"
+    | "customer_decline_reason"
+  >;
+  company: Pick<Organization, "name" | "phone" | "email" | "website" | "address" | "logo_url">;
+  customer: Pick<
+    Customer,
+    | "first_name"
+    | "last_name"
+    | "phone"
+    | "email"
+    | "billing_address"
+    | "billing_street"
+    | "billing_city"
+    | "billing_state"
+    | "billing_zip"
+  >;
+  property: Pick<
+    Property,
+    | "property_name"
+    | "address_line_1"
+    | "address_line_2"
+    | "city"
+    | "state"
+    | "zip"
+    | "property_type"
+  >;
+  siteVisit: Pick<SiteVisit, "preferred_style" | "preferred_colors"> | null;
+  package: {
+    name: string;
+    description: string | null;
+    includedItems: Array<{
+      name: string;
+      quantity: string;
+      unit: string;
+      notes: string | null;
+    }>;
+  } | null;
+  lineItems: Array<
+    Pick<QuoteLineItem, "id" | "description" | "quantity" | "unit" | "unit_price" | "line_total" | "notes">
+  >;
+}
+
+export interface PublicProposalDecisionResult {
+  ok: boolean;
+  error?: string;
+}
+
 export interface Job {
   id: string;
   organization_id: string;
@@ -376,7 +444,24 @@ export type Database = {
       files: TableDefinition<FileRecord>;
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      is_valid_proposal_token: {
+        Args: { p_token: string };
+        Returns: boolean;
+      };
+      get_public_proposal: {
+        Args: { p_token: string };
+        Returns: PublicProposalPayload | null;
+      };
+      approve_public_proposal: {
+        Args: { p_token: string; p_name: string; p_email?: string | null };
+        Returns: PublicProposalDecisionResult;
+      };
+      decline_public_proposal: {
+        Args: { p_token: string; p_reason?: string | null };
+        Returns: PublicProposalDecisionResult;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

@@ -40,8 +40,13 @@ For a new project, run `supabase/schema.sql` first. Then run every migration bel
 8. `supabase/migrations/20260701_quote_rls_policies.sql`
 9. `supabase/migrations/20260701_quote_schema_compatibility.sql`
 10. `supabase/migrations/20260701_schedule_event_dedup.sql`
+11. `supabase/migrations/20260706_customer_addresses.sql`
+12. `supabase/migrations/20260706_organization_pricing_settings.sql`
+13. `supabase/migrations/20260717_tenant_scoped_rls.sql`
+14. `supabase/migrations/20260813_public_proposal_rpcs.sql`
 
 The quote compatibility migration reloads the PostgREST schema cache. Do not skip it when upgrading an older database.
+The tenant-scoped RLS migration replaces permissive authenticated policies. The public-proposal migration adds token-scoped `SECURITY DEFINER` functions without granting anonymous table access.
 
 ## 4. Supabase Storage
 
