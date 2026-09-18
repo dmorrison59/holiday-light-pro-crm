@@ -42,10 +42,16 @@ type SupportedStatus = keyof typeof statusVariants;
 export function StatusBadge({ status }: { status: string }) {
   const normalizedStatus = status.trim().toLowerCase();
   const variant = statusVariants[normalizedStatus as SupportedStatus] ?? "neutral";
+  const dotTone = {
+    neutral: "bg-slate-500",
+    success: "bg-emerald-600",
+    warning: "bg-amber-600",
+    danger: "bg-red-600",
+  }[variant];
   const label = normalizedStatus
     .split(/[\s_-]+/)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
 
-  return <Badge variant={variant}>{label || "Unknown"}</Badge>;
+  return <Badge variant={variant}><span aria-hidden="true" className={`size-1.5 rounded-full ${dotTone}`} />{label || "Unknown"}</Badge>;
 }

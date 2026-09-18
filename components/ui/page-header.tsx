@@ -8,13 +8,17 @@ type PageHeaderProps = {
 
 export function PageHeader({ title, description, actions }: PageHeaderProps) {
   return (
-    <header className="flex flex-col gap-4 border-b border-slate-200/80 pb-5 sm:flex-row sm:items-end sm:justify-between">
+    <header className="relative flex flex-col gap-4 border-b border-[#cfd8d6] pb-6 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <p className="mb-1.5 text-xs font-bold uppercase tracking-[0.2em] text-amber-700">Holiday Light Pro</p>
-        <h1 className="text-2xl font-extrabold tracking-tight text-[#0b1f33] sm:text-3xl">{title}</h1>
-        {description ? <p className="mt-1.5 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">{description}</p> : null}
+        <div className="mb-2 flex items-center gap-2.5 text-xs font-bold uppercase tracking-[0.18em] text-amber-800">
+          <span aria-hidden="true" className="size-1.5 rounded-full bg-amber-600 shadow-[0_0_0_4px_rgba(184,138,59,0.11)]" />
+          Holiday Light Pro
+        </div>
+        <h1 className="text-2xl font-extrabold tracking-[-0.025em] text-[#0b1f33] sm:text-3xl">{title}</h1>
+        {description ? <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">{description}</p> : null}
       </div>
-      {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
+      {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2 sm:pb-0.5">{actions}</div> : null}
+      <span aria-hidden="true" className="absolute -bottom-px left-0 h-px w-20 bg-amber-600" />
     </header>
   );
 }

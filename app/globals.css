@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f3f5f7;
+  --background: #f2f4f6;
   --foreground: #102033;
   --navy: #0b1f33;
   --navy-soft: #17324d;
@@ -10,7 +10,11 @@
   --gold: #b88a3b;
   --gold-dark: #8e6728;
   --surface: #fffefb;
-  --border: #dbe1e7;
+  --surface-muted: #f7f8f9;
+  --border: #d9e1e7;
+  --border-strong: #c8d3dc;
+  --shadow-soft: 0 1px 2px rgba(11, 31, 51, 0.04), 0 12px 32px rgba(11, 31, 51, 0.055);
+  --shadow-raised: 0 2px 4px rgba(11, 31, 51, 0.06), 0 18px 42px rgba(11, 31, 51, 0.09);
 }
 
 * {
@@ -44,6 +48,33 @@ select {
 
 :focus-visible { outline-color: var(--gold-dark); }
 
+.app-shell {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(circle at 88% -8%, rgba(184, 138, 59, 0.06), transparent 27rem),
+    radial-gradient(circle at 30% 0%, rgba(48, 86, 114, 0.06), transparent 34rem);
+}
+
+.app-workspace {
+  position: relative;
+  isolation: isolate;
+}
+
+.app-workspace::before {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: -1;
+  height: 11rem;
+  border-bottom: 1px solid rgba(200, 211, 220, 0.62);
+  background: rgba(255, 254, 251, 0.46);
+  content: "";
+  pointer-events: none;
+}
+
+.app-content {
+  position: relative;
+}
+
 /* Compatibility layer for older screens that still use the original amber
    utility names. This keeps the visual system consistent without changing
    their behavior. */
@@ -58,6 +89,17 @@ select {
 table tbody tr { transition: background-color 150ms ease; }
 table thead { background: #f5f7f9; color: #536273; }
 table tbody tr:hover { background: #faf8f1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell *,
+  .app-shell *::before,
+  .app-shell *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
 
 /* Customer-facing proposal palette */
 body:has(.proposal-print) {
