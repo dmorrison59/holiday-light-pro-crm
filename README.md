@@ -35,7 +35,7 @@ For a new Supabase project:
 1. Run `supabase/schema.sql` in the Supabase SQL editor.
 2. Run each file in `supabase/migrations` in filename order. Migrations use safe `if exists`/`if not exists` patterns where appropriate and must be applied manually.
 3. Follow `supabase/storage.md` to create the private `holiday-light-files` bucket and organization-scoped read, upload, and delete policies.
-4. In Supabase Authentication, configure the local callback URL and later add the production callback/domain URLs.
+4. In Supabase Authentication URL Configuration, set the production Site URL and add the exact production and local callback URLs listed in `DEPLOYMENT.md`. Password recovery uses the same callback with an allowlisted `/reset-password` destination.
 
 The browser uses only the public URL and anonymous key. Row-level security and organization-scoped queries protect authenticated data.
 

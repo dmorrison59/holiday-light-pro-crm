@@ -1,11 +1,17 @@
 "use server";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
+import {
+  approvedAuthOrigin,
+  PASSWORD_RECOVERY_COOKIE,
+  passwordRecoveryCallbackUrl,
+} from "@/lib/auth/password-recovery";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export interface AuthActionState {
   error?: string;
+  success?: string;
 }
 
 const readRequired = (formData: FormData, name: string) =>
@@ -79,6 +85,74 @@ export async function signupAction(
   }
 
   redirect("/onboarding");
+}
+
+export async function requestPasswordRecoveryAction(
+  _previousState: AuthActionState,
+  formData: FormData,
+): Promise<AuthActionState> {
+  const email = readRequired(formData, "email");
+  if (!email) return { error: "Enter your email address." };
+
+  try {
+    const requestHeaders = await headers();
+    const origin = approvedAuthOrigin(requestHeaders.get("origin"));
+    const supabase = await createSupabaseServerClient();
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: passwordRecoveryCallbackUrl(origin),
+    });
+
+    if (error) {
+      return { error: "We could not send a recovery email right now. Please try again shortly." };
+    }
+  } catch {
+    return { error: "We could not send a recovery email right now. Please try again shortly." };
+  }
+
+  return {
+    success: "If an account exists for that email, we sent a password reset link. Check your inbox and spam folder.",
+  };
+}
+
+export async function updatePasswordAction(
+  _previousState: AuthActionState,
+  formData: FormData,
+): Promise<AuthActionState> {
+  const password = String(formData.get("password") ?? "");
+  const confirmPassword = String(formData.get("confirm_password") ?? "");
+
+  if (password.length < 8) return { error: "Use a password with at least 8 characters." };
+  if (password !== confirmPassword) return { error: "Passwords do not match." };
+
+  const cookieStore = await cookies();
+  if (cookieStore.get(PASSWORD_RECOVERY_COOKIE)?.value !== "1") {
+    return { error: "This password reset session has expired. Request a new recovery email." };
+  }
+
+  try {
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      cookieStore.delete(PASSWORD_RECOVERY_COOKIE);
+      return { error: "This password reset session has expired. Request a new recovery email." };
+    }
+
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) {
+      return { error: "We could not update your password. Request a new recovery email and try again." };
+    }
+
+    await supabase.auth.signOut();
+    cookieStore.delete(PASSWORD_RECOVERY_COOKIE);
+  } catch {
+    return { error: "We could not update your password. Request a new recovery email and try again." };
+  }
+
+  redirect("/login?message=Password%20updated%E2%80%94please%20log%20in.");
 }
 
 export async function onboardingAction(

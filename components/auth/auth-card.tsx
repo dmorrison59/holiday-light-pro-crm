@@ -12,16 +12,16 @@ interface AuthCardProps {
 
 export function AuthCard({ eyebrow, title, description, children, footer }: AuthCardProps) {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-950 via-emerald-900 to-slate-800 px-4 py-10">
+    <main className="flex min-h-screen items-center justify-center bg-[#0b1f33] px-4 py-10">
       <div className="w-full max-w-lg">
-        <Link href="/login" className="mx-auto mb-6 flex w-fit items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300">
-          <span className="flex size-11 items-center justify-center rounded-xl bg-white text-emerald-800 shadow-sm"><Zap className="size-5" fill="currentColor" /></span>
+        <Link href="/login" className="mx-auto mb-6 flex w-fit items-center gap-3 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300">
+          <span className="flex size-11 items-center justify-center rounded-xl border border-amber-200/70 bg-[#cda65f] text-[#0b1f33] shadow-[inset_0_1px_0_rgba(255,255,255,0.45),0_8px_22px_rgba(3,15,25,0.28)]"><Zap className="size-5" fill="currentColor" /></span>
           <span><span className="block text-sm font-extrabold text-white">Holiday Light Pro</span><span className="block text-xs text-slate-400">Contractor CRM</span></span>
         </Link>
 
-        <Card className="border-white/20 shadow-2xl shadow-slate-950/20">
+        <Card className="border-white/20 shadow-2xl shadow-slate-950/25">
           <CardContent className="p-6 sm:p-8">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">{eyebrow}</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#315b78]">{eyebrow}</p>
             <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">{title}</h1>
             <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
             <div className="mt-7">{children}</div>

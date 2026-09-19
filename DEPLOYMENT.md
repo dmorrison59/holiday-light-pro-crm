@@ -64,10 +64,17 @@ Uploads go directly from the authenticated browser to Supabase Storage. The appl
 
 In Supabase Authentication URL Configuration:
 
-- Set the production Site URL to the final Vercel or custom domain.
-- Add `https://YOUR-DOMAIN/auth/callback` to allowed redirect URLs.
-- Keep `http://localhost:3000/auth/callback` for local development.
-- Add the Vercel preview callback pattern only if preview authentication is required.
+- Set **Site URL** to `https://www.holidaylightsprocrm.com`.
+- Add these exact production URLs to **Redirect URLs**:
+  - `https://www.holidaylightsprocrm.com/auth/callback`
+  - `https://www.holidaylightsprocrm.com/auth/callback?next=/onboarding`
+  - `https://www.holidaylightsprocrm.com/auth/callback?next=/reset-password`
+- Add these exact local-development URLs to **Redirect URLs**:
+  - `http://localhost:3000/auth/callback`
+  - `http://localhost:3000/auth/callback?next=/onboarding`
+  - `http://localhost:3000/auth/callback?next=/reset-password`
+
+The recovery email must preserve the `redirectTo` value supplied by the application. Supabase’s default recovery template does this. If the template is customized, keep its confirmation link compatible with `{{ .RedirectTo }}`. Add a Vercel preview callback pattern only if preview authentication is explicitly required; do not use a broad production wildcard.
 
 ## 6. Public proposal security
 
@@ -100,6 +107,7 @@ Also test invoice/material printing and a mobile viewport.
 - [ ] Run `supabase/schema.sql` for a new database and all migrations in order.
 - [ ] Create the private `holiday-light-files` bucket and Storage policies.
 - [ ] Update Supabase Auth Site URL and redirect URLs.
+- [ ] Test forgot-password and set-new-password handling with a non-production inbox.
 - [ ] Deploy and test signup, login, logout, and onboarding.
 - [ ] Test quote creation, public proposal approval, job conversion, and invoice.
 - [ ] Test direct file upload, signed preview, and deletion.

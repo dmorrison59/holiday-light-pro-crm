@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 
@@ -21,6 +22,7 @@ export function Field({
   autoComplete,
   defaultValue,
   placeholder,
+  labelAction,
 }: {
   label: string;
   name: string;
@@ -29,10 +31,14 @@ export function Field({
   autoComplete?: string;
   defaultValue?: string;
   placeholder?: string;
+  labelAction?: ReactNode;
 }) {
   return (
     <label className="block text-sm font-semibold text-slate-800">
-      {label}{required ? <span className="text-red-600"> *</span> : null}
+      <span className="flex items-center justify-between gap-3">
+        <span>{label}{required ? <span className="text-red-600"> *</span> : null}</span>
+        {labelAction}
+      </span>
       <input
         name={name}
         type={type}
