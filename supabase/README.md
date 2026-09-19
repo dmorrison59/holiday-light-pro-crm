@@ -51,6 +51,8 @@ Run `migrations/20260717_tenant_scoped_rls.sql` to replace permissive authentica
 
 Run `migrations/20260813_public_proposal_rpcs.sql` after the quote and tenant-RLS migrations. It adds token-scoped `SECURITY DEFINER` functions for anonymous proposal viewing and decisions without granting anonymous access to the underlying tables.
 
+Run `migrations/20260918_seasonal_rebooking.sql` after the public-proposal migration. It adds renewal lineage to quotes and an authenticated, tenant-scoped `SECURITY INVOKER` function that atomically creates one current-season draft renewal from an eligible prior-season job.
+
 ## 4. Add seed data
 
 Create at least one row in `organizations`, then paste and run `seed.sql` in the SQL Editor. By default, the seed targets the oldest organization. Edit the `target_organization` CTE to select a specific organization before using it in a shared database.

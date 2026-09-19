@@ -230,6 +230,8 @@ export interface Quote {
   customer_approval_name: Nullable<string>;
   customer_approval_email: Nullable<string>;
   customer_decline_reason: Nullable<string>;
+  renewal_source_job_id: Nullable<string>;
+  renewal_season: Nullable<number>;
   created_at: string;
   updated_at: string;
 }
@@ -460,6 +462,10 @@ export type Database = {
       decline_public_proposal: {
         Args: { p_token: string; p_reason?: string | null };
         Returns: PublicProposalDecisionResult;
+      };
+      create_renewal_quote: {
+        Args: { p_source_job_id: string; p_renewal_season: number };
+        Returns: string;
       };
     };
     Enums: Record<string, never>;

@@ -44,9 +44,10 @@ For a new project, run `supabase/schema.sql` first. Then run every migration bel
 12. `supabase/migrations/20260706_organization_pricing_settings.sql`
 13. `supabase/migrations/20260717_tenant_scoped_rls.sql`
 14. `supabase/migrations/20260813_public_proposal_rpcs.sql`
+15. `supabase/migrations/20260918_seasonal_rebooking.sql`
 
 The quote compatibility migration reloads the PostgREST schema cache. Do not skip it when upgrading an older database.
-The tenant-scoped RLS migration replaces permissive authenticated policies. The public-proposal migration adds token-scoped `SECURITY DEFINER` functions without granting anonymous table access.
+The tenant-scoped RLS migration replaces permissive authenticated policies. The public-proposal migration adds token-scoped `SECURITY DEFINER` functions without granting anonymous table access. The seasonal-rebooking migration adds quote lineage and an authenticated `SECURITY INVOKER` renewal RPC; it does not grant anonymous access or create renewal jobs automatically.
 
 ## 4. Supabase Storage
 

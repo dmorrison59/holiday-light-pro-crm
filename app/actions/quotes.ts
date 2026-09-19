@@ -47,6 +47,44 @@ export async function createQuoteAction(_state: CrmActionState, formData: FormDa
   console.info("[quotes] created", { quote_id: quote.id, quote_number: quoteNumber, organization_id: organization.id, line_count: parsed.lines.length });
   redirect(`/quotes/${quote.id}?created=1`);
 }
-export async function updateQuoteAction(_state: CrmActionState, formData: FormData): Promise<CrmActionState> { const quoteId = value(formData, "quote_id"); if (!quoteId) return { error: "Quote information is missing." }; const parsed = quoteValues(formData); if ("error" in parsed) return { error: parsed.error }; const { organization } = await requireOrganization(); const supabase = await createSupabaseServerClient(); const relationshipError = await validateRelations(supabase, organization.id, parsed.data, parsed.lines); if (relationshipError) return { error: relationshipError }; const { data, error } = await supabase.from("quotes").update({ ...parsed.data, updated_at: new Date().toISOString() }).eq("organization_id", organization.id).eq("id", quoteId).select("id").maybeSingle(); if (error) return { error: "We could not update this quote." }; if (!data) return { error: "Quote not found." }; const { error: deleteError } = await supabase.from("quote_line_items").delete().eq("organization_id", organization.id).eq("quote_id", quoteId); if (deleteError) return { error: "We could not update quote line items." }; const { error: lineError } = await supabase.from("quote_line_items").insert(parsed.lines.map((item) => ({ ...item, organization_id: organization.id, quote_id: quoteId }))); if (lineError) return { error: "The quote was updated, but its line items could not be saved. Please try again." }; await updateCustomerStatus(supabase, organization.id, parsed.data.customer_id, parsed.data.status); redirect(`/quotes/${quoteId}?updated=1`); }
+export async function updateQuoteAction(_state: CrmActionState, formData: FormData): Promise<CrmActionState> {
+  const quoteId = value(formData, "quote_id");
+  if (!quoteId) return { error: "Quote information is missing." };
+  const parsed = quoteValues(formData);
+  if ("error" in parsed) return { error: parsed.error };
+  const { organization } = await requireOrganization();
+  const supabase = await createSupabaseServerClient();
+  const { data: existingQuote, error: existingQuoteError } = await supabase
+    .from("quotes")
+    .select("renewal_source_job_id")
+    .eq("organization_id", organization.id)
+    .eq("id", quoteId)
+    .maybeSingle();
+  if (existingQuoteError) return { error: "We could not check this quote." };
+  if (!existingQuote) return { error: "Quote not found." };
+  if (existingQuote.renewal_source_job_id) {
+    const { data: sourceJob, error: sourceJobError } = await supabase
+      .from("jobs")
+      .select("customer_id, property_id")
+      .eq("organization_id", organization.id)
+      .eq("id", existingQuote.renewal_source_job_id)
+      .maybeSingle();
+    if (sourceJobError || !sourceJob) return { error: "The renewal source job could not be verified." };
+    if (parsed.data.customer_id !== sourceJob.customer_id || parsed.data.property_id !== sourceJob.property_id) {
+      return { error: "A renewal quote must stay with its original customer and property." };
+    }
+  }
+  const relationshipError = await validateRelations(supabase, organization.id, parsed.data, parsed.lines);
+  if (relationshipError) return { error: relationshipError };
+  const { data, error } = await supabase.from("quotes").update({ ...parsed.data, updated_at: new Date().toISOString() }).eq("organization_id", organization.id).eq("id", quoteId).select("id").maybeSingle();
+  if (error) return { error: "We could not update this quote." };
+  if (!data) return { error: "Quote not found." };
+  const { error: deleteError } = await supabase.from("quote_line_items").delete().eq("organization_id", organization.id).eq("quote_id", quoteId);
+  if (deleteError) return { error: "We could not update quote line items." };
+  const { error: lineError } = await supabase.from("quote_line_items").insert(parsed.lines.map((item) => ({ ...item, organization_id: organization.id, quote_id: quoteId })));
+  if (lineError) return { error: "The quote was updated, but its line items could not be saved. Please try again." };
+  await updateCustomerStatus(supabase, organization.id, parsed.data.customer_id, parsed.data.status);
+  redirect(`/quotes/${quoteId}?updated=1`);
+}
 export async function updateQuoteStatusAction(_state: CrmActionState, formData: FormData): Promise<CrmActionState> { const quoteId = value(formData, "quote_id"); const status = value(formData, "status"); if (!quoteId || !quoteStatuses.includes(status as typeof quoteStatuses[number])) return { error: "Choose a valid quote status." }; const { organization } = await requireOrganization(); const supabase = await createSupabaseServerClient(); const { data, error } = await supabase.from("quotes").update({ status, updated_at: new Date().toISOString() }).eq("organization_id", organization.id).eq("id", quoteId).select("customer_id").maybeSingle(); if (error) return { error: "We could not change this quote’s status." }; if (!data) return { error: "Quote not found." }; await updateCustomerStatus(supabase, organization.id, data.customer_id, status); redirect(`/quotes/${quoteId}?status=${status}`); }
 export async function deleteDraftQuoteAction(_state: CrmActionState, formData: FormData): Promise<CrmActionState> { const quoteId = value(formData, "quote_id"); if (!quoteId) return { error: "Quote information is missing." }; const { organization } = await requireOrganization(); const supabase = await createSupabaseServerClient(); const { data, error } = await supabase.from("quotes").delete().eq("organization_id", organization.id).eq("id", quoteId).eq("status", "draft").select("id").maybeSingle(); if (error) return { error: "We could not delete this draft quote." }; if (!data) return { error: "Only draft quotes can be deleted." }; redirect("/quotes?deleted=1"); }

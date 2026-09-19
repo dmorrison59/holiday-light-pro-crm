@@ -261,11 +261,18 @@ create table if not exists public.quotes (
   customer_approval_name text,
   customer_approval_email text,
   customer_decline_reason text,
+  renewal_source_job_id uuid,
+  renewal_season integer,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint quotes_nonnegative_values check (
     subtotal >= 0 and discount >= 0 and total >= 0 and
     deposit_required >= 0 and deposit_value >= 0 and balance_due >= 0
+  ),
+  constraint quotes_renewal_fields_together_check check (
+    (renewal_source_job_id is null and renewal_season is null)
+    or
+    (renewal_source_job_id is not null and renewal_season is not null)
   )
 );
 
@@ -309,6 +316,12 @@ create table if not exists public.jobs (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.quotes
+  add constraint quotes_renewal_source_job_fkey
+  foreign key (renewal_source_job_id)
+  references public.jobs(id)
+  on delete restrict;
 
 create table if not exists public.schedule_events (
   id uuid primary key default gen_random_uuid(),
@@ -423,6 +436,7 @@ create index if not exists quotes_customer_id_idx on public.quotes (customer_id)
 create index if not exists quotes_property_id_idx on public.quotes (property_id);
 create index if not exists quotes_site_visit_id_idx on public.quotes (site_visit_id);
 create index if not exists quotes_package_id_idx on public.quotes (package_id);
+create index if not exists quotes_renewal_source_job_id_idx on public.quotes (renewal_source_job_id);
 create index if not exists quote_line_items_quote_id_idx on public.quote_line_items (quote_id);
 create index if not exists quote_line_items_catalog_item_id_idx on public.quote_line_items (catalog_item_id);
 create index if not exists jobs_customer_id_idx on public.jobs (customer_id);
@@ -459,6 +473,12 @@ create unique index if not exists packages_org_name_uidx
 create unique index if not exists quotes_org_number_uidx
   on public.quotes (organization_id, quote_number)
   where quote_number is not null;
+create unique index if not exists quotes_org_renewal_source_season_uidx
+  on public.quotes (organization_id, renewal_source_job_id, renewal_season)
+  where renewal_source_job_id is not null;
+create index if not exists quotes_org_renewal_season_idx
+  on public.quotes (organization_id, renewal_season, status)
+  where renewal_source_job_id is not null;
 create unique index if not exists jobs_org_number_uidx
   on public.jobs (organization_id, job_number)
   where job_number is not null;
@@ -479,6 +499,51 @@ begin
 end;
 $$;
 
+create or replace function public.enforce_renewal_quote_integrity()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+begin
+  if tg_op = 'UPDATE' and (
+    old.renewal_source_job_id is distinct from new.renewal_source_job_id
+    or old.renewal_season is distinct from new.renewal_season
+  ) then
+    raise exception 'Renewal quote lineage cannot be changed.' using errcode = '22023';
+  end if;
+
+  if new.renewal_source_job_id is null then
+    return new;
+  end if;
+
+  if tg_op = 'UPDATE' and (
+    old.customer_id is distinct from new.customer_id
+    or old.property_id is distinct from new.property_id
+  ) then
+    raise exception 'A renewal quote must stay with its source customer and property.' using errcode = '22023';
+  end if;
+
+  if not exists (
+    select 1
+    from public.jobs job
+    where job.id = new.renewal_source_job_id
+      and job.organization_id = new.organization_id
+      and job.customer_id = new.customer_id
+      and job.property_id = new.property_id
+  ) then
+    raise exception 'The renewal source job is not valid for this organization.' using errcode = '22023';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists enforce_renewal_quote_integrity on public.quotes;
+create trigger enforce_renewal_quote_integrity
+before insert or update on public.quotes
+for each row execute function public.enforce_renewal_quote_integrity();
+
 do $$
 declare
   table_name text;
@@ -498,5 +563,7 @@ begin
   end loop;
 end;
 $$;
+
+revoke all on function public.enforce_renewal_quote_integrity() from public, anon, authenticated;
 
 -- Row Level Security policies are intentionally added in a later task.
