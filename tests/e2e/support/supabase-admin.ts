@@ -391,6 +391,108 @@ export async function cancelRenewalJobWithRetainedInstallDate(jobId: string, sea
   if (error) throw new Error(`Unable to cancel renewal fixture job: ${error.message}`);
 }
 
+export async function seedPackageBasePriceFixture(userId: string, expectedEmail: string) {
+  const { supabase, organizationId } = await verifiedTestOrganization(userId, expectedEmail);
+  const token = randomUUID().slice(0, 8);
+  const { data: customer, error: customerError } = await supabase.from("customers").insert({
+    organization_id: organizationId,
+    first_name: "Package",
+    last_name: `Customer ${token}`,
+    email: expectedEmail,
+    status: "lead",
+  }).select("id").single();
+  if (customerError || !customer) throw new Error(`Unable to create package-pricing customer: ${customerError?.message ?? "no customer returned"}`);
+
+  const { data: property, error: propertyError } = await supabase.from("properties").insert({
+    organization_id: organizationId,
+    customer_id: customer.id,
+    property_name: `Package Test Property ${token}`,
+    address_line_1: "995 Evergreen Way",
+    city: "Greensburg",
+    state: "PA",
+    zip: "15601",
+  }).select("id").single();
+  if (propertyError || !property) throw new Error(`Unable to create package-pricing property: ${propertyError?.message ?? "no property returned"}`);
+
+  const { data: catalog, error: catalogError } = await supabase.from("catalog_items").insert([
+    { organization_id: organizationId, name: `Included C9 Lights ${token}`, category: "Roofline Lights", pricing_method: "per_foot", unit_type: "ft", unit_price: "12", cost: "2", customer_facing: true, active: true, track_inventory: true, quantity_available: "500", quantity_reserved: "0", reorder_threshold: "50" },
+    { organization_id: organizationId, name: `Premium Wreath Upgrade ${token}`, category: "Wreaths", pricing_method: "each", unit_type: "each", unit_price: "125", cost: "45", customer_facing: true, active: true, track_inventory: true, quantity_available: "10", quantity_reserved: "0", reorder_threshold: "2" },
+  ]).select("id, name");
+  if (catalogError || !catalog || catalog.length !== 2) throw new Error(`Unable to create package-pricing catalog: ${catalogError?.message ?? "catalog rows missing"}`);
+  const includedItem = catalog.find((item) => item.name.startsWith("Included C9 Lights"));
+  const upgradeItem = catalog.find((item) => item.name.startsWith("Premium Wreath Upgrade"));
+  if (!includedItem || !upgradeItem) throw new Error("Unable to identify package-pricing catalog fixtures.");
+
+  const { data: packageRecord, error: packageError } = await supabase.from("packages").insert({
+    organization_id: organizationId,
+    name: "Basic Package",
+    description: "Fixed-price package base line coverage",
+    base_price: "995",
+    active: true,
+    display_order: 1,
+  }).select("id").single();
+  if (packageError || !packageRecord) throw new Error(`Unable to create fixed-price package: ${packageError?.message ?? "no package returned"}`);
+
+  const { error: packageItemsError } = await supabase.from("package_items").insert([
+    { organization_id: organizationId, package_id: packageRecord.id, catalog_item_id: includedItem.id, quantity: "100", unit: "ft", included: true, optional_addon: false, price_override: null, notes: "Included package scope" },
+    { organization_id: organizationId, package_id: packageRecord.id, catalog_item_id: upgradeItem.id, quantity: "1", unit: "each", included: false, optional_addon: true, price_override: "125", notes: "Optional paid upgrade" },
+  ]);
+  if (packageItemsError) throw new Error(`Unable to create package-pricing items: ${packageItemsError.message}`);
+
+  const { error: pricingError } = await supabase.from("organization_pricing_settings").upsert({
+    organization_id: organizationId,
+    removal_included: true,
+    storage_included: false,
+  }, { onConflict: "organization_id" });
+  if (pricingError) throw new Error(`Unable to configure package-pricing defaults: ${pricingError.message}`);
+
+  return {
+    organizationId,
+    customerId: customer.id,
+    propertyId: property.id,
+    packageId: packageRecord.id,
+    packageName: "Basic Package",
+    includedItemName: includedItem.name,
+    upgradeItemName: upgradeItem.name,
+  };
+}
+
+export async function getPackageQuoteAudit(quoteId: string) {
+  const supabase = adminClient();
+  const { data: quote, error: quoteError } = await supabase.from("quotes").select("id, organization_id, customer_id, property_id, package_id, subtotal, total, proposal_token").eq("id", quoteId).single();
+  if (quoteError || !quote) throw new Error(`Unable to load package quote: ${quoteError?.message ?? "no quote returned"}`);
+  const { data: lines, error: linesError } = await supabase.from("quote_line_items").select("catalog_item_id, description, quantity, unit, unit_price, multiplier, line_total, notes").eq("quote_id", quoteId).order("created_at");
+  if (linesError) throw new Error(`Unable to load package quote lines: ${linesError.message}`);
+  return { quote, lines: lines ?? [] };
+}
+
+export async function createPriorSeasonJobForPackageQuote(quoteId: string, targetSeason: number) {
+  const supabase = adminClient();
+  const { data: quote, error: quoteError } = await supabase.from("quotes").select("organization_id, customer_id, property_id").eq("id", quoteId).single();
+  if (quoteError || !quote) throw new Error(`Unable to load package quote for job setup: ${quoteError?.message ?? "no quote returned"}`);
+  const { error: approvalError } = await supabase.from("quotes").update({ status: "approved", approved_at: new Date().toISOString() }).eq("id", quoteId);
+  if (approvalError) throw new Error(`Unable to approve package quote fixture: ${approvalError.message}`);
+  const { data: job, error: jobError } = await supabase.from("jobs").insert({
+    organization_id: quote.organization_id,
+    customer_id: quote.customer_id,
+    property_id: quote.property_id,
+    quote_id: quoteId,
+    job_number: `E2E-PACKAGE-${randomUUID().slice(0, 8).toUpperCase()}`,
+    status: "complete",
+    install_date: `${targetSeason - 1}-11-15`,
+    payment_status: "unpaid",
+  }).select("id").single();
+  if (jobError || !job) throw new Error(`Unable to create package quote job: ${jobError?.message ?? "no job returned"}`);
+  return job.id;
+}
+
+export async function getJobMaterialAudit(jobId: string) {
+  const supabase = adminClient();
+  const { data, error } = await supabase.from("job_materials").select("catalog_item_id, description, quantity, reserved_quantity, source").eq("job_id", jobId).order("created_at");
+  if (error) throw new Error(`Unable to load package material audit: ${error.message}`);
+  return data ?? [];
+}
+
 export async function cleanupConfirmedTestUser(userId: string, expectedEmail: string) {
   if (!expectedEmail.startsWith(TEST_EMAIL_PREFIX)) throw new Error("Refusing cleanup without the E2E email prefix.");
   const supabase = adminClient();

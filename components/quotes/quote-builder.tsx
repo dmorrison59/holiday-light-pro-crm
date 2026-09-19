@@ -48,7 +48,9 @@ export function QuoteBuilder({ data, quote, initialCustomerId = "", initialPrope
       const storage = getPricingRule("storage");
       const removalIncluded = data.pricingSettings?.removal_included ?? true;
       const storageIncluded = data.pricingSettings?.storage_included ?? false;
-      const packageLines: BuilderLine[] = [];
+      const packageLines: BuilderLine[] = Number(next.base_price) > 0
+        ? [{ key: key(), sourceKey: "package-base", catalog_item_id: null, description: next.name, quantity: "1", unit: "package", unit_price: next.base_price, multiplier: "1", customer_visible: true, notes: "Package base price" }]
+        : [];
       if (removal) packageLines.push({ key: key(), sourceKey: "package-removal", catalog_item_id: null, description: removalIncluded ? "Post-season removal included" : removal.description, quantity: "1", unit: removal.unit, unit_price: String(removalIncluded ? 0 : getOrganizationPrice(data.pricingSettings, "removal")), multiplier: "1", customer_visible: true, notes: removalIncluded ? `Included with ${next.name}` : `Organization removal pricing for ${next.name}` });
       if (storage && storageIncluded) packageLines.push({ key: key(), sourceKey: "package-storage", catalog_item_id: null, description: "Seasonal storage included", quantity: "1", unit: storage.unit, unit_price: "0", multiplier: "1", customer_visible: true, notes: `Included with ${next.name}` });
       return [...remaining, ...packageLines];
